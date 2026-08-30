@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────
+// 이 게임은 로그인(인증) 없이 "4자리 코드"만으로 참여하는
+// 교실/가족용 간단한 게임이라, 규칙을 단순하게 열어두었습니다.
+// Firebase 콘솔 > Firestore Database > 규칙 탭에 아래 내용을 붙여넣고 게시하세요.
+//
+// 참고: 인증이 없기 때문에 코드만 알면 누구나 읽고 쓸 수 있습니다.
+// 외부에 공개하는 서비스가 아니라 아이들과 함께하는 소규모 게임이므로
+// 이 정도 개방된 규칙으로도 충분합니다. 더 강화하고 싶다면
+// Firebase Anonymous Auth를 추가하는 것을 고려해보세요.
+// ─────────────────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /games/{gameCode} {
+      allow read, write: if true;
+
+      match /players/{playerId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}
