@@ -32,6 +32,20 @@ const $ = (id) => document.getElementById(id);
 // 결과 발표(reveal) 화면에서 다음 단계로 자동으로 넘어가기까지 기다리는 시간.
 const REVEAL_COUNTDOWN_MS = 10000;
 
+// 게임 진행(투표 마감, 다음 단계 이동 등) 관련 쓰기는 이 락을 통해서만 실행한다.
+// 자동 진행 타이머와 관리자의 수동 버튼 클릭이 동시에 눌려도 같은 단계가
+// 두 번 처리되지 않도록 막아준다.
+let adminActionBusy = false;
+async function runAdminAction(fn) {
+  if (adminActionBusy) return;
+  adminActionBusy = true;
+  try {
+    await fn();
+  } finally {
+    adminActionBusy = false;
+  }
+}
+
 /* ------------------------------------------------------------
    화면 전환
    ------------------------------------------------------------ */
@@ -433,7 +447,6 @@ function startAdminSession(code) {
 
   let latestGame = null;
   let latestPlayers = [];
-  let autoAdvancing = false;
 
   const rerender = () => {
     if (!latestGame) return;
@@ -450,8 +463,8 @@ function startAdminSession(code) {
   }, 1000);
 
   // 전원이 투표를 마치면 관리자가 마감 버튼을 누르지 않아도 자동으로 다음 단계로 넘어간다.
-  async function maybeAutoAdvance() {
-    if (autoAdvancing) return;
+  function maybeAutoAdvance() {
+    if (adminActionBusy) return;
     const game = latestGame;
     const players = latestPlayers;
     const alivePlayers = aliveList(players);
@@ -476,6 +489,10 @@ function startAdminSession(code) {
         if (aliveMafia.length > 0 && votedCount >= aliveMafia.length) {
           action = () => closeMafiaVote(code, game, players);
         }
+      } else if (game.nightSubphase === "mafia_done") {
+        if (game.revealDeadline && Date.now() >= game.revealDeadline) {
+          action = () => goToDoctorPhase(code);
+        }
       } else if (game.nightSubphase === "doctor_vote") {
         const votedCount = Object.keys(game.doctorVotes || {}).length;
         if (aliveDoctors.length > 0 && votedCount >= aliveDoctors.length) {
@@ -489,12 +506,7 @@ function startAdminSession(code) {
     }
 
     if (!action) return;
-    autoAdvancing = true;
-    try {
-      await action();
-    } finally {
-      autoAdvancing = false;
-    }
+    runAdminAction(action);
   }
 
   adminUnsubGame = db.collection("games").doc(code).onSnapshot((snap) => {
@@ -635,6 +647,7 @@ function renderPhaseBanner(game) {
     const labels = {
       mafia_vote: "마피아가 대상을 고르는 중",
       mafia_revote: "마피아 재투표 중",
+      mafia_done: "의사에게 넘어가는 중",
       doctor_vote: "의사가 살릴 사람을 고르는 중",
       reveal: "결과 발표",
     };
@@ -770,6 +783,13 @@ function renderAdminControlPanel(code, game, players) {
         <button class="big-btn" id="btnCloseMafiaVote">✅ 마피아 투표 마감</button>
       </div>`;
     }
+    if (game.nightSubphase === "mafia_done") {
+      return `<div class="admin-panel">
+        <h3>진행 조작</h3>
+        ${renderCountdownText(game.revealDeadline, "💉 의사에게 넘어갑니다")}
+        <button class="big-btn" id="btnGoDoctor">💉 지금 바로 의사에게 넘기기</button>
+      </div>`;
+    }
     if (game.nightSubphase === "doctor_vote") {
       const votedCount = Object.keys(game.doctorVotes || {}).length;
       return `<div class="admin-panel">
@@ -793,27 +813,32 @@ function renderAdminControlPanel(code, game, players) {
 function wireAdminControlPanel(code, game, players) {
   const btnCloseVote = $("btnCloseVote");
   if (btnCloseVote) {
-    btnCloseVote.addEventListener("click", () => closeDayVote(code, game, players));
+    btnCloseVote.addEventListener("click", () => runAdminAction(() => closeDayVote(code, game, players)));
   }
 
   const btnGoNight = $("btnGoNight");
   if (btnGoNight) {
-    btnGoNight.addEventListener("click", () => goToNight(code, players));
+    btnGoNight.addEventListener("click", () => runAdminAction(() => goToNight(code, players)));
   }
 
   const btnCloseMafiaVote = $("btnCloseMafiaVote");
   if (btnCloseMafiaVote) {
-    btnCloseMafiaVote.addEventListener("click", () => closeMafiaVote(code, game, players));
+    btnCloseMafiaVote.addEventListener("click", () => runAdminAction(() => closeMafiaVote(code, game, players)));
+  }
+
+  const btnGoDoctor = $("btnGoDoctor");
+  if (btnGoDoctor) {
+    btnGoDoctor.addEventListener("click", () => runAdminAction(() => goToDoctorPhase(code)));
   }
 
   const btnCloseDoctorVote = $("btnCloseDoctorVote");
   if (btnCloseDoctorVote) {
-    btnCloseDoctorVote.addEventListener("click", () => closeDoctorVote(code, game, players));
+    btnCloseDoctorVote.addEventListener("click", () => runAdminAction(() => closeDoctorVote(code, game, players)));
   }
 
   const btnGoDay = $("btnGoDay");
   if (btnGoDay) {
-    btnGoDay.addEventListener("click", () => goToDay(code, game, players));
+    btnGoDay.addEventListener("click", () => runAdminAction(() => goToDay(code, game, players)));
   }
 }
 
@@ -828,6 +853,14 @@ async function goToNight(code, players) {
     mafiaTargetId: null,
     doctorVotes: {},
     lastNightResult: null,
+    revealDeadline: null,
+  });
+}
+
+async function goToDoctorPhase(code) {
+  await gameRef(code).update({
+    nightSubphase: "doctor_vote",
+    doctorVotes: {},
     revealDeadline: null,
   });
 }
@@ -923,10 +956,11 @@ async function closeMafiaVote(code, game, players) {
   if (aliveDoctors.length === 0) {
     await resolveNight(code, { mafiaTargetId: targetId });
   } else {
+    // 의사 선택으로 넘어가기 전 잠깐 카운트다운을 보여준다.
     await gameRef(code).update({
       mafiaTargetId: targetId,
-      nightSubphase: "doctor_vote",
-      doctorVotes: {},
+      nightSubphase: "mafia_done",
+      revealDeadline: Date.now() + REVEAL_COUNTDOWN_MS,
     });
   }
 }
@@ -1206,6 +1240,12 @@ function renderPlayerAction(code, playerId, game, players, me) {
         `;
       }
       return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>`;
+    }
+    if (game.nightSubphase === "mafia_done") {
+      return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>${renderCountdownText(
+        game.revealDeadline,
+        "💉 의사에게 넘어갑니다"
+      )}`;
     }
     if (game.nightSubphase === "doctor_vote") {
       if (me.role === "doctor") {
