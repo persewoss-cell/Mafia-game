@@ -12,10 +12,10 @@
 // ─────────────────────────────────────────────────────────────
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDJuSoU0STuC_JLi7FaHdabxBm0vKt_Cgo",
+  authDomain: "mafia-game-592b5.firebaseapp.com",
+  projectId: "mafia-game-592b5",
+  storageBucket: "mafia-game-592b5.firebasestorage.app",
+  messagingSenderId: "498766799489",
+  appId: "1:498766799489:web:f5074dc8945260edd6e380"
 };
