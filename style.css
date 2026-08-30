@@ -303,6 +303,18 @@ body.theme-night .lobby-list li { background: rgba(255,255,255,0.06); }
 }
 body.theme-night .tie-banner { background: #4a3a1a; color: #ffd68a; }
 
+.countdown-banner {
+  text-align: center;
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin: 0 0 16px;
+  font-weight: 700;
+  background: #e6eeff;
+  color: #2a4b9c;
+  box-shadow: var(--shadow);
+}
+body.theme-night .countdown-banner { background: #1e2a4a; color: #a9c6ff; }
+
 .phase-banner {
   text-align: center;
   border-radius: var(--radius);

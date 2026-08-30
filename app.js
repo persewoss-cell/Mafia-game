@@ -29,6 +29,9 @@ try {
 
 const $ = (id) => document.getElementById(id);
 
+// 결과 발표(reveal) 화면에서 다음 단계로 자동으로 넘어가기까지 기다리는 시간.
+const REVEAL_COUNTDOWN_MS = 10000;
+
 /* ------------------------------------------------------------
    화면 전환
    ------------------------------------------------------------ */
@@ -138,14 +141,16 @@ $("btnLeaveTopRight").addEventListener("click", () => {
   const session = loadSession();
   const isAdmin = session && session.role === "admin";
   const msg = isAdmin
-    ? "관리자가 나가면 자동 진행이 멈춰요. 게임에서 나가시겠어요? (같은 코드로는 다시 들어올 수 없어요)"
+    ? "관리자가 나가면 자동 진행이 멈춰요. 게임에서 나가시겠어요? (게임 만들기 화면에서 코드+비밀번호로 다시 들어올 수 있어요)"
     : "게임에서 나가시겠어요? 같은 코드와 이름으로 다시 들어올 수 있어요.";
   if (!confirm(msg)) return;
 
   if (adminUnsubGame) adminUnsubGame();
   if (adminUnsubPlayers) adminUnsubPlayers();
+  if (adminTickInterval) clearInterval(adminTickInterval);
   if (playerUnsubGame) playerUnsubGame();
   if (playerUnsubPlayers) playerUnsubPlayers();
+  if (playerTickInterval) clearInterval(playerTickInterval);
 
   clearSession();
   showScreen("screen-home");
@@ -203,6 +208,7 @@ $("btnCreateGame").addEventListener("click", async () => {
       lastNightResult: null,
       winner: null,
       winnerTrigger: null,
+      revealDeadline: null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
@@ -417,11 +423,13 @@ function autoResume() {
    ============================================================ */
 let adminUnsubGame = null;
 let adminUnsubPlayers = null;
+let adminTickInterval = null;
 
 function startAdminSession(code) {
   showScreen("screen-admin");
   if (adminUnsubGame) adminUnsubGame();
   if (adminUnsubPlayers) adminUnsubPlayers();
+  if (adminTickInterval) clearInterval(adminTickInterval);
 
   let latestGame = null;
   let latestPlayers = [];
@@ -432,6 +440,14 @@ function startAdminSession(code) {
     renderAdmin(code, latestGame, latestPlayers);
     maybeAutoAdvance();
   };
+
+  // 결과 발표(reveal) 화면의 카운트다운 숫자가 매초 줄어들도록 주기적으로 다시 그린다.
+  adminTickInterval = setInterval(() => {
+    if (!latestGame) return;
+    const inCountdown =
+      (latestGame.daySubphase === "reveal" || latestGame.nightSubphase === "reveal") && latestGame.revealDeadline;
+    if (inCountdown) rerender();
+  }, 1000);
 
   // 전원이 투표를 마치면 관리자가 마감 버튼을 누르지 않아도 자동으로 다음 단계로 넘어간다.
   async function maybeAutoAdvance() {
@@ -447,6 +463,10 @@ function startAdminSession(code) {
       if (alivePlayers.length > 0 && votedCount >= alivePlayers.length) {
         action = () => closeDayVote(code, game, players);
       }
+    } else if (game.phase === "day" && game.daySubphase === "reveal") {
+      if (game.revealDeadline && Date.now() >= game.revealDeadline) {
+        action = () => goToNight(code, players);
+      }
     } else if (game.phase === "night") {
       const aliveMafia = alivePlayers.filter((p) => p.role === "mafia");
       const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
@@ -460,6 +480,10 @@ function startAdminSession(code) {
         const votedCount = Object.keys(game.doctorVotes || {}).length;
         if (aliveDoctors.length > 0 && votedCount >= aliveDoctors.length) {
           action = () => closeDoctorVote(code, game, players);
+        }
+      } else if (game.nightSubphase === "reveal") {
+        if (game.revealDeadline && Date.now() >= game.revealDeadline) {
+          action = () => goToDay(code, game, players);
         }
       }
     }
@@ -717,7 +741,7 @@ function renderAdminControlPanel(code, game, players) {
       const votedCount = Object.keys(game.votes || {}).length;
       const eligibleVoters = alivePlayers.length;
       return `<div class="admin-panel">
-        <h3>진행 조작 ${game.voteRound === 2 ? "(재투표)" : ""}</h3>
+        <h3>진행 조작 ${game.voteRound > 1 ? `(재투표 ${game.voteRound}회차)` : ""}</h3>
         <p class="sub-text">투표 현황: ${votedCount} / ${eligibleVoters}명 투표 완료</p>
         ${renderTallyList(counts, players)}
         <button class="big-btn" id="btnCloseVote">✅ 투표 마감하고 결과 확인</button>
@@ -726,7 +750,8 @@ function renderAdminControlPanel(code, game, players) {
     if (game.daySubphase === "reveal") {
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
-        <button class="big-btn" id="btnGoNight">🌙 밤으로 진행하기</button>
+        ${renderCountdownText(game.revealDeadline, "🌙 밤이 됩니다")}
+        <button class="big-btn" id="btnGoNight">🌙 지금 바로 밤으로 진행하기</button>
       </div>`;
     }
   }
@@ -739,7 +764,7 @@ function renderAdminControlPanel(code, game, players) {
       const counts = tally(game.nightVotes, game.nightCandidates);
       const votedCount = Object.keys(game.nightVotes || {}).length;
       return `<div class="admin-panel">
-        <h3>진행 조작 ${game.nightRound === 2 ? "(재투표)" : ""}</h3>
+        <h3>진행 조작 ${game.nightRound > 1 ? `(재투표 ${game.nightRound}회차)` : ""}</h3>
         <p class="sub-text">마피아 투표 현황: ${votedCount} / ${aliveMafia.length}명 투표 완료</p>
         ${renderTallyList(counts, players)}
         <button class="big-btn" id="btnCloseMafiaVote">✅ 마피아 투표 마감</button>
@@ -756,7 +781,8 @@ function renderAdminControlPanel(code, game, players) {
     if (game.nightSubphase === "reveal") {
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
-        <button class="big-btn" id="btnGoDay">☀️ 아침이 밝았습니다 (낮으로)</button>
+        ${renderCountdownText(game.revealDeadline, "☀️ 낮이 됩니다")}
+        <button class="big-btn" id="btnGoDay">☀️ 지금 바로 낮으로 진행하기</button>
       </div>`;
     }
   }
@@ -772,19 +798,7 @@ function wireAdminControlPanel(code, game, players) {
 
   const btnGoNight = $("btnGoNight");
   if (btnGoNight) {
-    btnGoNight.addEventListener("click", async () => {
-      const aliveNonMafia = aliveList(players).filter((p) => p.role !== "mafia");
-      await gameRef(code).update({
-        phase: "night",
-        nightSubphase: "mafia_vote",
-        nightVotes: {},
-        nightCandidates: aliveNonMafia.map((p) => p.id),
-        nightRound: 1,
-        mafiaTargetId: null,
-        doctorVotes: {},
-        lastNightResult: null,
-      });
-    });
+    btnGoNight.addEventListener("click", () => goToNight(code, players));
   }
 
   const btnCloseMafiaVote = $("btnCloseMafiaVote");
@@ -799,19 +813,37 @@ function wireAdminControlPanel(code, game, players) {
 
   const btnGoDay = $("btnGoDay");
   if (btnGoDay) {
-    btnGoDay.addEventListener("click", async () => {
-      const alive = aliveList(players);
-      await gameRef(code).update({
-        phase: "day",
-        daySubphase: "vote",
-        dayNumber: (game.dayNumber || 1) + 1,
-        votes: {},
-        voteCandidates: alive.map((p) => p.id),
-        voteRound: 1,
-        lastDayResult: null,
-      });
-    });
+    btnGoDay.addEventListener("click", () => goToDay(code, game, players));
   }
+}
+
+async function goToNight(code, players) {
+  const aliveNonMafia = aliveList(players).filter((p) => p.role !== "mafia");
+  await gameRef(code).update({
+    phase: "night",
+    nightSubphase: "mafia_vote",
+    nightVotes: {},
+    nightCandidates: aliveNonMafia.map((p) => p.id),
+    nightRound: 1,
+    mafiaTargetId: null,
+    doctorVotes: {},
+    lastNightResult: null,
+    revealDeadline: null,
+  });
+}
+
+async function goToDay(code, game, players) {
+  const alive = aliveList(players);
+  await gameRef(code).update({
+    phase: "day",
+    daySubphase: "vote",
+    dayNumber: (game.dayNumber || 1) + 1,
+    votes: {},
+    voteCandidates: alive.map((p) => p.id),
+    voteRound: 1,
+    lastDayResult: null,
+    revealDeadline: null,
+  });
 }
 
 async function closeDayVote(code, game, players) {
@@ -820,29 +852,25 @@ async function closeDayVote(code, game, players) {
 
   if (winners.length === 0) {
     // 아무도 투표하지 않음 -> 탈락자 없음
-    await applyDayResult(code, { eliminatedId: null, tie: false, noVotes: true });
+    await applyDayResult(code, { eliminatedId: null, noVotes: true });
     return;
   }
 
-  if (winners.length > 1 && game.voteRound === 1) {
+  if (winners.length > 1) {
+    // 동률인 사람들만 데리고 최다 득표자가 1명이 될 때까지 계속 재투표한다.
     await gameRef(code).update({
       daySubphase: "revote",
       voteCandidates: winners,
       votes: {},
-      voteRound: 2,
+      voteRound: (game.voteRound || 1) + 1,
     });
     return;
   }
 
-  if (winners.length > 1 && game.voteRound >= 2) {
-    await applyDayResult(code, { eliminatedId: null, tie: true });
-    return;
-  }
-
-  await applyDayResult(code, { eliminatedId: winners[0], tie: false });
+  await applyDayResult(code, { eliminatedId: winners[0] });
 }
 
-async function applyDayResult(code, { eliminatedId, tie, noVotes }) {
+async function applyDayResult(code, { eliminatedId, noVotes }) {
   const playersSnap = await gameRef(code).collection("players").get();
   const players = playersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
@@ -861,11 +889,12 @@ async function applyDayResult(code, { eliminatedId, tie, noVotes }) {
 
   await gameRef(code).update({
     daySubphase: "reveal",
-    lastDayResult: { eliminatedId: eliminatedId || null, eliminatedName, eliminatedRole, tie: !!tie, noVotes: !!noVotes },
+    lastDayResult: { eliminatedId: eliminatedId || null, eliminatedName, eliminatedRole, noVotes: !!noVotes },
     status: winner ? "ended" : "playing",
     phase: winner ? "ended" : "day",
     winner: winner || null,
     winnerTrigger: winner ? "day" : null,
+    revealDeadline: winner ? null : Date.now() + REVEAL_COUNTDOWN_MS,
   });
 }
 
@@ -878,18 +907,14 @@ async function closeMafiaVote(code, game, players) {
     return;
   }
 
-  if (winners.length > 1 && game.nightRound === 1) {
+  if (winners.length > 1) {
+    // 동률인 대상들만 데리고 최다 득표자가 1명이 될 때까지 계속 재투표한다.
     await gameRef(code).update({
       nightSubphase: "mafia_revote",
       nightCandidates: winners,
       nightVotes: {},
-      nightRound: 2,
+      nightRound: (game.nightRound || 1) + 1,
     });
-    return;
-  }
-
-  if (winners.length > 1 && game.nightRound >= 2) {
-    await resolveNight(code, { mafiaTargetId: null });
     return;
   }
 
@@ -945,6 +970,7 @@ async function resolveNight(code, { mafiaTargetId, doctorVotes }) {
     phase: winner ? "ended" : "night",
     winner: winner || null,
     winnerTrigger: winner ? "night" : null,
+    revealDeadline: winner ? null : Date.now() + REVEAL_COUNTDOWN_MS,
   });
 }
 
@@ -973,11 +999,13 @@ function renderWinnerModalInline(game) {
    ============================================================ */
 let playerUnsubGame = null;
 let playerUnsubPlayers = null;
+let playerTickInterval = null;
 
 function startPlayerSession(code, playerId) {
   showScreen("screen-player");
   if (playerUnsubGame) playerUnsubGame();
   if (playerUnsubPlayers) playerUnsubPlayers();
+  if (playerTickInterval) clearInterval(playerTickInterval);
 
   let latestGame = null;
   let latestPlayers = [];
@@ -992,6 +1020,14 @@ function startPlayerSession(code, playerId) {
     }
     renderPlayer(code, playerId, latestGame, latestPlayers, me);
   };
+
+  // 결과 발표(reveal) 화면의 카운트다운 숫자가 매초 줄어들도록 주기적으로 다시 그린다.
+  playerTickInterval = setInterval(() => {
+    if (!latestGame) return;
+    const inCountdown =
+      (latestGame.daySubphase === "reveal" || latestGame.nightSubphase === "reveal") && latestGame.revealDeadline;
+    if (inCountdown) rerender();
+  }, 1000);
 
   playerUnsubGame = db.collection("games").doc(code).onSnapshot((snap) => {
     if (!snap.exists) {
@@ -1198,38 +1234,43 @@ function renderPlayerAction(code, playerId, game, players, me) {
   return `<div class="waiting-box"><span class="icon">⏳</span><p>잠시만 기다려주세요...</p></div>`;
 }
 
+// revealDeadline이 있으면(=게임이 아직 진행 중이면) "N초 뒤에 ~"라는 카운트다운 문구를 보여준다.
+function renderCountdownText(deadline, label) {
+  if (!deadline) return "";
+  const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+  return `<div class="countdown-banner">⏳ <strong>${remaining}초</strong> 뒤에 ${label}</div>`;
+}
+
 function renderDayRevealBox(game, players) {
   const r = game.lastDayResult;
+  let inner;
   if (!r || r.noVotes) {
-    return `<div class="waiting-box"><span class="icon">🤷</span><p>아무도 투표하지 않아 탈락자가 없습니다.</p></div>`;
-  }
-  if (r.tie) {
-    return `<div class="waiting-box"><span class="icon">🤝</span><p>재투표에서도 동률이 나와 이번엔 아무도 탈락하지 않았습니다.</p></div>`;
-  }
-  return `
-    <div class="waiting-box">
+    inner = `<span class="icon">🤷</span><p>아무도 투표하지 않아 탈락자가 없습니다.</p>`;
+  } else {
+    inner = `
       <span class="icon">${r.eliminatedRole === "mafia" ? "🔪" : "😢"}</span>
       <p><strong>${escapeHtml(r.eliminatedName)}</strong>님이 탈락했습니다.</p>
       <p class="sub-text">정체는 <span class="badge ${r.eliminatedRole}">${roleLabel(r.eliminatedRole)}</span> 였습니다.</p>
-    </div>
-  `;
+    `;
+  }
+  return `<div class="waiting-box">${inner}</div>${renderCountdownText(game.revealDeadline, "🌙 밤이 됩니다")}`;
 }
 
 function renderNightRevealBox(game, players) {
   const r = game.lastNightResult;
+  let inner;
   if (!r || r.nobody) {
-    return `<div class="waiting-box"><span class="icon">🌅</span><p>어젯밤은 아무 일도 일어나지 않았습니다.</p></div>`;
-  }
-  if (r.saved) {
-    return `<div class="waiting-box"><span class="icon">💉</span><p>마피아의 공격이 있었지만 의사 선생님이 살렸습니다!</p></div>`;
-  }
-  return `
-    <div class="waiting-box">
+    inner = `<span class="icon">🌅</span><p>어젯밤은 아무 일도 일어나지 않았습니다.</p>`;
+  } else if (r.saved) {
+    inner = `<span class="icon">💉</span><p>마피아의 공격이 있었지만 의사 선생님이 살렸습니다!</p>`;
+  } else {
+    inner = `
       <span class="icon">💀</span>
       <p><strong>${escapeHtml(r.targetName)}</strong>님이 밤사이 목숨을 잃었습니다.</p>
       <p class="sub-text">정체는 <span class="badge ${r.targetRole}">${roleLabel(r.targetRole)}</span> 였습니다.</p>
-    </div>
-  `;
+    `;
+  }
+  return `<div class="waiting-box">${inner}</div>${renderCountdownText(game.revealDeadline, "☀️ 낮이 됩니다")}`;
 }
 
 function wirePlayerAction(code, playerId, game, players, me) {
