@@ -47,6 +47,20 @@ body.theme-night .panel {
 
 body.theme-night .sub-text { color: #b9b6da; }
 
+.fatal-error {
+  display: none;
+  max-width: 900px;
+  margin: 20px auto 0;
+  padding: 18px 20px;
+  background: #ffe1e1;
+  color: #8a1f1f;
+  border: 2px solid #e08a8a;
+  border-radius: 16px;
+  font-weight: 700;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 #app {
   max-width: 900px;
   margin: 0 auto;

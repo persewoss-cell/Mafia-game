@@ -3,8 +3,29 @@
    Firebase Firestore를 이용한 실시간 동기화 로직
    ============================================================ */
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+if (typeof firebase === "undefined") {
+  if (window.showFatalError) {
+    showFatalError("Firebase 라이브러리가 로드되지 않았습니다. 인터넷 연결 또는 네트워크 차단 설정을 확인해주세요.");
+  }
+  throw new Error("firebase SDK not loaded");
+}
+if (typeof firebaseConfig === "undefined" || firebaseConfig.apiKey === "YOUR_API_KEY") {
+  if (window.showFatalError) {
+    showFatalError("firebase-config.js에 실제 Firebase 프로젝트 값이 입력되지 않았습니다.");
+  }
+  throw new Error("firebaseConfig not set");
+}
+
+let db;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch (err) {
+  if (window.showFatalError) {
+    showFatalError("Firebase 초기화에 실패했습니다: " + err.message);
+  }
+  throw err;
+}
 
 const $ = (id) => document.getElementById(id);
 

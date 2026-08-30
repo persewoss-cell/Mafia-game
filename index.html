@@ -7,6 +7,22 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+<script>
+  // 화면이 하얗게(또는 빈 화면으로) 멈추는 원인을 바로 알 수 있도록,
+  // 스크립트 로딩 실패나 실행 중 오류를 화면에 직접 표시합니다.
+  window.showFatalError = function (msg) {
+    var box = document.getElementById("fatalError");
+    if (!box) return;
+    box.textContent = "⚠️ " + msg;
+    box.style.display = "block";
+  };
+  window.addEventListener("error", function (e) {
+    var msg = e && e.message ? e.message : "알 수 없는 오류";
+    if (e && e.filename) msg += " (" + e.filename.split("/").pop() + ")";
+    window.showFatalError("오류가 발생했습니다: " + msg);
+  });
+</script>
+<div id="fatalError" class="fatal-error"></div>
 <div id="app">
 
   <!-- 홈 화면 -->
@@ -69,9 +85,15 @@
   <div class="modal-box" id="modalBox"></div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
-<script src="app.js"></script>
+<script
+  src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"
+  onerror="showFatalError('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 학교/기관 네트워크의 차단 설정을 확인해주세요. (firebase-app-compat.js 로드 실패)')"
+></script>
+<script
+  src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"
+  onerror="showFatalError('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 학교/기관 네트워크의 차단 설정을 확인해주세요. (firebase-firestore-compat.js 로드 실패)')"
+></script>
+<script src="firebase-config.js" onerror="showFatalError('firebase-config.js 파일을 불러오지 못했습니다.')"></script>
+<script src="app.js" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
 </body>
 </html>
