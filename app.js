@@ -35,6 +35,8 @@ const $ = (id) => document.getElementById(id);
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach((el) => el.classList.remove("active"));
   $(id).classList.add("active");
+  const leaveBtn = $("btnLeaveTopRight");
+  if (leaveBtn) leaveBtn.hidden = !(id === "screen-admin" || id === "screen-player");
 }
 
 function setTheme(phase) {
@@ -121,6 +123,26 @@ $("btnBackHome1").addEventListener("click", () => showScreen("screen-home"));
 $("btnBackHome2").addEventListener("click", () => showScreen("screen-home"));
 
 /* ------------------------------------------------------------
+   게임 나가기 (화면 우측 상단 고정 버튼)
+   ------------------------------------------------------------ */
+$("btnLeaveTopRight").addEventListener("click", () => {
+  const session = loadSession();
+  const isAdmin = session && session.role === "admin";
+  const msg = isAdmin
+    ? "관리자가 나가면 자동 진행이 멈춰요. 게임에서 나가시겠어요? (같은 코드로는 다시 들어올 수 없어요)"
+    : "게임에서 나가시겠어요? 같은 코드와 이름으로 다시 들어올 수 있어요.";
+  if (!confirm(msg)) return;
+
+  if (adminUnsubGame) adminUnsubGame();
+  if (adminUnsubPlayers) adminUnsubPlayers();
+  if (playerUnsubGame) playerUnsubGame();
+  if (playerUnsubPlayers) playerUnsubPlayers();
+
+  clearSession();
+  showScreen("screen-home");
+});
+
+/* ------------------------------------------------------------
    게임 생성 (관리자)
    ------------------------------------------------------------ */
 $("btnCreateGame").addEventListener("click", async () => {
@@ -204,15 +226,19 @@ $("btnJoinGame").addEventListener("click", async () => {
       return;
     }
     const game = gameSnap.data();
-    if (game.status !== "lobby") {
-      $("joinError").textContent = "이미 시작된 게임에는 참가할 수 없습니다.";
-      $("btnJoinGame").disabled = false;
+
+    // 같은 코드+이름이면 예전에 참가했던 사람으로 보고 그대로 재접속시킨다
+    // (게임이 이미 시작되었거나 끝났어도 재접속은 항상 허용).
+    const existing = await gameRef.collection("players").where("name", "==", name).get();
+    if (!existing.empty) {
+      const existingDoc = existing.docs[0];
+      saveSession({ code, role: "player", playerId: existingDoc.id, name });
+      startPlayerSession(code, existingDoc.id);
       return;
     }
 
-    const existing = await gameRef.collection("players").where("name", "==", name).get();
-    if (!existing.empty) {
-      $("joinError").textContent = "이미 사용 중인 이름입니다. 다른 이름을 입력해주세요.";
+    if (game.status !== "lobby") {
+      $("joinError").textContent = "이미 시작된 게임에는 새로 참가할 수 없습니다. 기존에 사용했던 이름으로 입력하면 다시 들어올 수 있어요.";
       $("btnJoinGame").disabled = false;
       return;
     }
@@ -357,7 +383,6 @@ function renderAdmin(code, game, players) {
         <button class="big-btn" id="btnStartGame" ${players.length < 3 ? "disabled" : ""}>
           ${players.length < 3 ? "최소 3명 필요" : "🎬 게임 시작하기"}
         </button>
-        <button class="big-btn ghost" id="btnCancelGame">게임 취소하고 나가기</button>
       </div>
     `;
     const list = $("lobbyPlayerList");
@@ -367,11 +392,6 @@ function renderAdmin(code, game, players) {
       list.innerHTML = players.map((p) => `<li>🙋 ${escapeHtml(p.name)}</li>`).join("");
     }
     $("btnStartGame").addEventListener("click", () => startGame(code, players));
-    $("btnCancelGame").addEventListener("click", async () => {
-      if (!confirm("게임을 취소하고 나가시겠습니까?")) return;
-      clearSession();
-      showScreen("screen-home");
-    });
     return;
   }
 
@@ -882,13 +902,8 @@ function renderPlayer(code, playerId, game, players, me) {
         <ul class="lobby-list">
           ${players.map((p) => `<li>🙋 ${escapeHtml(p.name)}${p.id === playerId ? " (나)" : ""}</li>`).join("")}
         </ul>
-        <button class="big-btn ghost" id="btnLeaveLobby">나가기</button>
       </div>
     `;
-    $("btnLeaveLobby").addEventListener("click", () => {
-      clearSession();
-      showScreen("screen-home");
-    });
     return;
   }
 
@@ -901,14 +916,9 @@ function renderPlayer(code, playerId, game, players, me) {
         <span style="font-size:3rem;display:block;">${isCitizen ? "🎉" : "🔪"}</span>
         <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
         <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
-        <button class="big-btn" id="btnLeaveEnded">나가기</button>
       </div>
       ${renderFinalRoster(players)}
     `;
-    $("btnLeaveEnded").addEventListener("click", () => {
-      clearSession();
-      showScreen("screen-home");
-    });
     return;
   }
 
