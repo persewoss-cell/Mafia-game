@@ -237,6 +237,18 @@ body.theme-night .count-pill { background: rgba(255,255,255,0.08); }
 }
 body.theme-night .player-list li { background: rgba(255,255,255,0.06); }
 
+.tie-banner {
+  text-align: center;
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  background: #fff0d0;
+  color: #8a5a10;
+  box-shadow: var(--shadow);
+}
+body.theme-night .tie-banner { background: #4a3a1a; color: #ffd68a; }
+
 .phase-banner {
   text-align: center;
   border-radius: var(--radius);

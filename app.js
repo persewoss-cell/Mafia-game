@@ -266,11 +266,53 @@ function startAdminSession(code) {
 
   let latestGame = null;
   let latestPlayers = [];
+  let autoAdvancing = false;
 
   const rerender = () => {
     if (!latestGame) return;
     renderAdmin(code, latestGame, latestPlayers);
+    maybeAutoAdvance();
   };
+
+  // 전원이 투표를 마치면 관리자가 마감 버튼을 누르지 않아도 자동으로 다음 단계로 넘어간다.
+  async function maybeAutoAdvance() {
+    if (autoAdvancing) return;
+    const game = latestGame;
+    const players = latestPlayers;
+    const alivePlayers = aliveList(players);
+
+    let action = null;
+
+    if (game.phase === "day" && (game.daySubphase === "vote" || game.daySubphase === "revote")) {
+      const votedCount = Object.keys(game.votes || {}).length;
+      if (alivePlayers.length > 0 && votedCount >= alivePlayers.length) {
+        action = () => closeDayVote(code, game, players);
+      }
+    } else if (game.phase === "night") {
+      const aliveMafia = alivePlayers.filter((p) => p.role === "mafia");
+      const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
+
+      if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
+        const votedCount = Object.keys(game.nightVotes || {}).length;
+        if (aliveMafia.length > 0 && votedCount >= aliveMafia.length) {
+          action = () => closeMafiaVote(code, game, players);
+        }
+      } else if (game.nightSubphase === "doctor_vote") {
+        const votedCount = Object.keys(game.doctorVotes || {}).length;
+        if (aliveDoctors.length > 0 && votedCount >= aliveDoctors.length) {
+          action = () => closeDoctorVote(code, game, players);
+        }
+      }
+    }
+
+    if (!action) return;
+    autoAdvancing = true;
+    try {
+      await action();
+    } finally {
+      autoAdvancing = false;
+    }
+  }
 
   adminUnsubGame = db.collection("games").doc(code).onSnapshot((snap) => {
     if (!snap.exists) {
@@ -649,6 +691,7 @@ async function closeDayVote(code, game, players) {
 
   if (winners.length > 1 && game.voteRound === 1) {
     await gameRef(code).update({
+      daySubphase: "revote",
       voteCandidates: winners,
       votes: {},
       voteRound: 2,
@@ -953,13 +996,24 @@ function renderPlayerAction(code, playerId, game, players, me) {
     }
     if (game.daySubphase === "vote" || game.daySubphase === "revote") {
       const myVote = game.votes ? game.votes[playerId] : null;
+      const isTie = (game.voteRound || 1) >= 2;
+      const candidates = game.voteCandidates || [];
+      const votedCount = Object.keys(game.votes || {}).length;
+      const eligibleCount = aliveList(players).length;
+      const gridPlayers = isTie ? players.filter((p) => !p.alive || candidates.includes(p.id)) : players;
+      const tieNames = players.filter((p) => candidates.includes(p.id)).map((p) => p.name).join(", ");
       return `
-        <p class="center-text sub-text">마피아로 의심되는 사람을 선택해 투표하세요.</p>
-        ${renderPlayerGrid(players, {
+        ${
+          isTie
+            ? `<div class="tie-banner">🤝 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
+            : `<p class="center-text sub-text">마피아로 의심되는 사람을 선택해 투표하세요.</p>`
+        }
+        <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명</p>
+        ${renderPlayerGrid(gridPlayers, {
           mode: "day-vote",
           myId: playerId,
           selectedId: myVote,
-          candidates: game.voteCandidates,
+          candidates,
         })}
       `;
     }
@@ -972,13 +1026,24 @@ function renderPlayerAction(code, playerId, game, players, me) {
     if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
       if (me.role === "mafia") {
         const myVote = game.nightVotes ? game.nightVotes[playerId] : null;
+        const isTie = (game.nightRound || 1) >= 2;
+        const candidates = game.nightCandidates || [];
+        const votedCount = Object.keys(game.nightVotes || {}).length;
+        const eligibleCount = aliveList(players).filter((p) => p.role === "mafia").length;
+        const gridPlayers = isTie ? players.filter((p) => !p.alive || candidates.includes(p.id)) : players;
+        const tieNames = players.filter((p) => candidates.includes(p.id)).map((p) => p.name).join(", ");
         return `
-          <p class="center-text sub-text">제거할 시민을 선택하세요.</p>
-          ${renderPlayerGrid(players, {
+          ${
+            isTie
+              ? `<div class="tie-banner">🤝 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
+              : `<p class="center-text sub-text">제거할 시민을 선택하세요.</p>`
+          }
+          <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명 (마피아)</p>
+          ${renderPlayerGrid(gridPlayers, {
             mode: "night-mafia-vote",
             myId: playerId,
             selectedId: myVote,
-            candidates: game.nightCandidates,
+            candidates,
           })}
         `;
       }
@@ -988,8 +1053,11 @@ function renderPlayerAction(code, playerId, game, players, me) {
       if (me.role === "doctor") {
         const myVote = game.doctorVotes ? game.doctorVotes[playerId] : null;
         const candidates = players.filter((p) => p.alive).map((p) => p.id);
+        const votedCount = Object.keys(game.doctorVotes || {}).length;
+        const eligibleCount = aliveList(players).filter((p) => p.role === "doctor").length;
         return `
           <p class="center-text sub-text">누구를 살릴지 선택하세요.</p>
+          <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명 (의사)</p>
           ${renderPlayerGrid(players, {
             mode: "night-doctor-vote",
             myId: playerId,
