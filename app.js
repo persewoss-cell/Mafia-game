@@ -353,7 +353,7 @@ function renderAdmin(code, game, players) {
       <div class="card">
         <div class="code-display">${game.code}</div>
         <p class="center-text sub-text">목표 인원: ${game.maxPlayers}명 · 현재 참가: ${players.length}명</p>
-        <ul class="player-list" id="lobbyPlayerList"></ul>
+        <ul class="lobby-list" id="lobbyPlayerList"></ul>
         <button class="big-btn" id="btnStartGame" ${players.length < 3 ? "disabled" : ""}>
           ${players.length < 3 ? "최소 3명 필요" : "🎬 게임 시작하기"}
         </button>
@@ -362,7 +362,7 @@ function renderAdmin(code, game, players) {
     `;
     const list = $("lobbyPlayerList");
     if (players.length === 0) {
-      list.innerHTML = `<li class="sub-text">아직 참가자가 없습니다...</li>`;
+      list.innerHTML = `<li class="sub-text lobby-empty">아직 참가자가 없습니다...</li>`;
     } else {
       list.innerHTML = players.map((p) => `<li>🙋 ${escapeHtml(p.name)}</li>`).join("");
     }
@@ -435,7 +435,7 @@ async function startGame(code, players) {
   batch.update(gameRef(code), {
     status: "playing",
     phase: "day",
-    daySubphase: "discuss",
+    daySubphase: "vote",
     dayNumber: 1,
     votes: {},
     voteCandidates: players.map((p) => p.id),
@@ -450,7 +450,7 @@ async function startGame(code, players) {
    ------------------------------------------------------------ */
 function renderPhaseBanner(game) {
   if (game.phase === "day") {
-    const labels = { discuss: "토론 시간", vote: "투표 시간", revote: "재투표 시간", reveal: "결과 발표" };
+    const labels = { vote: "투표 시간", revote: "재투표 시간", reveal: "결과 발표" };
     return `<div class="phase-banner">☀️ 낮 ${game.dayNumber}일차 - ${labels[game.daySubphase] || ""}
       <span class="day-num">마피아로 의심되는 사람을 찾아 이야기해보세요</span></div>`;
   }
@@ -469,11 +469,13 @@ function renderPhaseBanner(game) {
 
 function renderCountsRow(game, players) {
   const total = players.length;
+  const aliveMafia = countByRole(players, "mafia");
   const aliveCitizen = countByRole(players, "citizen");
   const aliveDoctor = countByRole(players, "doctor");
   return `
     <div class="counts-row">
       <div class="count-pill"><span class="num">${total}</span><span class="label">총 인원</span></div>
+      <div class="count-pill"><span class="num">${aliveMafia}</span><span class="label">생존 마피아</span></div>
       <div class="count-pill"><span class="num">${aliveCitizen}</span><span class="label">생존 시민</span></div>
       <div class="count-pill"><span class="num">${aliveDoctor}</span><span class="label">생존 의사</span></div>
     </div>
@@ -557,13 +559,6 @@ function renderAdminControlPanel(code, game, players) {
   const alivePlayers = aliveList(players);
 
   if (game.phase === "day") {
-    if (game.daySubphase === "discuss") {
-      return `<div class="admin-panel">
-        <h3>진행 조작</h3>
-        <p class="sub-text">충분히 이야기를 나눴다면 투표를 시작하세요.</p>
-        <button class="big-btn" id="btnStartVote">🗳️ 투표 시작하기</button>
-      </div>`;
-    }
     if (game.daySubphase === "vote" || game.daySubphase === "revote") {
       const counts = tally(game.votes, game.voteCandidates);
       const votedCount = Object.keys(game.votes || {}).length;
@@ -617,20 +612,6 @@ function renderAdminControlPanel(code, game, players) {
 }
 
 function wireAdminControlPanel(code, game, players) {
-  const alivePlayers = aliveList(players);
-
-  const btnStartVote = $("btnStartVote");
-  if (btnStartVote) {
-    btnStartVote.addEventListener("click", async () => {
-      await gameRef(code).update({
-        daySubphase: "vote",
-        votes: {},
-        voteCandidates: alivePlayers.map((p) => p.id),
-        voteRound: 1,
-      });
-    });
-  }
-
   const btnCloseVote = $("btnCloseVote");
   if (btnCloseVote) {
     btnCloseVote.addEventListener("click", () => closeDayVote(code, game, players));
@@ -666,12 +647,13 @@ function wireAdminControlPanel(code, game, players) {
   const btnGoDay = $("btnGoDay");
   if (btnGoDay) {
     btnGoDay.addEventListener("click", async () => {
+      const alive = aliveList(players);
       await gameRef(code).update({
         phase: "day",
-        daySubphase: "discuss",
+        daySubphase: "vote",
         dayNumber: (game.dayNumber || 1) + 1,
         votes: {},
-        voteCandidates: [],
+        voteCandidates: alive.map((p) => p.id),
         voteRound: 1,
         lastDayResult: null,
       });
@@ -897,7 +879,7 @@ function renderPlayer(code, playerId, game, players, me) {
       <div class="card">
         <p class="center-text">참가 코드: <strong>${game.code}</strong></p>
         <p class="center-text sub-text">${players.length}명 참가 중</p>
-        <ul class="player-list">
+        <ul class="lobby-list">
           ${players.map((p) => `<li>🙋 ${escapeHtml(p.name)}${p.id === playerId ? " (나)" : ""}</li>`).join("")}
         </ul>
         <button class="big-btn ghost" id="btnLeaveLobby">나가기</button>
@@ -991,9 +973,6 @@ function renderPlayerAction(code, playerId, game, players, me) {
   }
 
   if (game.phase === "day") {
-    if (game.daySubphase === "discuss") {
-      return `<div class="waiting-box"><span class="icon">💬</span><p>자유롭게 이야기를 나눠보세요. 관리자가 곧 투표를 시작합니다.</p></div>`;
-    }
     if (game.daySubphase === "vote" || game.daySubphase === "revote") {
       const myVote = game.votes ? game.votes[playerId] : null;
       const isTie = (game.voteRound || 1) >= 2;
@@ -1006,7 +985,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
         ${
           isTie
             ? `<div class="tie-banner">🤝 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
-            : `<p class="center-text sub-text">마피아로 의심되는 사람을 선택해 투표하세요.</p>`
+            : `<p class="center-text sub-text">마피아로 의심되는 사람이 있으면 투표해주세요. 모든 사람이 투표하면 결과가 나옵니다.</p>`
         }
         <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명</p>
         ${renderPlayerGrid(gridPlayers, {

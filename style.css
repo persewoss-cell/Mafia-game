@@ -237,6 +237,34 @@ body.theme-night .count-pill { background: rgba(255,255,255,0.08); }
 }
 body.theme-night .player-list li { background: rgba(255,255,255,0.06); }
 
+.lobby-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+.lobby-list li {
+  padding: 12px 6px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.04);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  word-break: keep-all;
+}
+.lobby-list li.lobby-empty {
+  grid-column: 1 / -1;
+  color: var(--text-sub);
+  font-weight: 500;
+}
+body.theme-night .lobby-list li { background: rgba(255,255,255,0.06); }
+
+@media (max-width: 520px) {
+  .lobby-list { grid-template-columns: repeat(3, 1fr); }
+}
+
 .tie-banner {
   text-align: center;
   border-radius: 16px;
