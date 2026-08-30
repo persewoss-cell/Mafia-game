@@ -236,7 +236,9 @@ $("btnJoinGame").addEventListener("click", async () => {
 /* ------------------------------------------------------------
    자동 재접속
    ------------------------------------------------------------ */
-(function autoResume() {
+// startAdminSession/startPlayerSession이 쓰는 let 변수들이 아래쪽에서
+// 선언되므로, 그 선언들이 모두 끝난 뒤(파일 맨 아래)에 실제로 호출한다.
+function autoResume() {
   const session = loadSession();
   if (!session) {
     showScreen("screen-home");
@@ -249,7 +251,7 @@ $("btnJoinGame").addEventListener("click", async () => {
   } else {
     showScreen("screen-home");
   }
-})();
+}
 
 /* ============================================================
    관리자 세션
@@ -1076,3 +1078,8 @@ function wirePlayerAction(code, playerId, game, players, me) {
     });
   });
 }
+
+/* ------------------------------------------------------------
+   시작점: 모든 함수/변수 선언이 끝난 뒤 자동 재접속을 시도한다.
+   ------------------------------------------------------------ */
+autoResume();
