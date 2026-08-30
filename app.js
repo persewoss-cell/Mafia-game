@@ -109,10 +109,19 @@ function countByRole(players, role) {
    홈 화면
    ------------------------------------------------------------ */
 $("btnGoCreate").addEventListener("click", () => {
+  enterCreateScreen();
+});
+
+function enterCreateScreen() {
   $("createError").textContent = "";
   $("inputMaxPlayers").value = "";
+  $("inputAdminPin").value = "";
+  $("reconnectError").textContent = "";
+  $("inputReconnectCode").value = "";
+  $("inputReconnectPin").value = "";
+  renderAdminHistoryList();
   showScreen("screen-create");
-});
+}
 $("btnGoJoin").addEventListener("click", () => {
   $("joinError").textContent = "";
   $("inputCode").value = "";
@@ -147,12 +156,18 @@ $("btnLeaveTopRight").addEventListener("click", () => {
    ------------------------------------------------------------ */
 $("btnCreateGame").addEventListener("click", async () => {
   const maxPlayers = parseInt($("inputMaxPlayers").value, 10);
+  const pinRaw = $("inputAdminPin").value.trim();
   $("createError").textContent = "";
 
   if (!maxPlayers || maxPlayers < 3) {
     $("createError").textContent = "최소 3명 이상 입력해주세요.";
     return;
   }
+  if (pinRaw && !/^\d{4}$/.test(pinRaw)) {
+    $("createError").textContent = "관리자 비밀번호는 4자리 숫자로 입력해주세요 (비워두면 0000).";
+    return;
+  }
+  const adminPin = pinRaw || "0000";
 
   $("btnCreateGame").disabled = true;
   try {
@@ -170,6 +185,7 @@ $("btnCreateGame").addEventListener("click", async () => {
     await db.collection("games").doc(code).set({
       code,
       maxPlayers,
+      adminPin,
       status: "lobby", // lobby | playing | ended
       phase: "lobby", // lobby | day | night | ended
       daySubphase: null,
@@ -190,6 +206,7 @@ $("btnCreateGame").addEventListener("click", async () => {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
+    addAdminHistory(code);
     saveSession({ code, role: "admin" });
     startAdminSession(code);
   } catch (err) {
@@ -197,6 +214,122 @@ $("btnCreateGame").addEventListener("click", async () => {
     $("createError").textContent = "게임 생성 중 오류가 발생했습니다: " + err.message;
     $("btnCreateGame").disabled = false;
   }
+});
+
+/* ------------------------------------------------------------
+   관리자 재접속 (최근 만든 게임방 목록 + 코드로 직접 재접속)
+   ------------------------------------------------------------ */
+const ADMIN_HISTORY_KEY = "mafiaAdminHistory";
+
+function getAdminHistory() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(ADMIN_HISTORY_KEY));
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function addAdminHistory(code) {
+  const history = getAdminHistory().filter((h) => h.code !== code);
+  history.unshift({ code, createdAt: Date.now() });
+  localStorage.setItem(ADMIN_HISTORY_KEY, JSON.stringify(history.slice(0, 8)));
+}
+
+function removeAdminHistory(code) {
+  const history = getAdminHistory().filter((h) => h.code !== code);
+  localStorage.setItem(ADMIN_HISTORY_KEY, JSON.stringify(history));
+}
+
+async function renderAdminHistoryList() {
+  const card = $("adminHistoryCard");
+  const list = $("adminHistoryList");
+  const history = getAdminHistory();
+
+  if (history.length === 0) {
+    card.hidden = true;
+    list.innerHTML = "";
+    return;
+  }
+
+  card.hidden = false;
+  list.innerHTML = history
+    .map(
+      (h) =>
+        `<li class="admin-history-item" data-code="${h.code}">🔑 ${h.code}<br><span class="sub-text history-status">확인 중...</span></li>`
+    )
+    .join("");
+
+  list.querySelectorAll(".admin-history-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      const code = item.dataset.code;
+      const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
+      if (pin === null) return;
+      attemptAdminReconnect(code, pin.trim(), null);
+    });
+  });
+
+  await Promise.all(
+    history.map(async (h) => {
+      const item = list.querySelector(`.admin-history-item[data-code="${h.code}"]`);
+      if (!item) return;
+      const statusEl = item.querySelector(".history-status");
+      try {
+        const snap = await db.collection("games").doc(h.code).get();
+        if (!snap.exists) {
+          statusEl.textContent = "삭제됨";
+          item.style.opacity = "0.5";
+          removeAdminHistory(h.code);
+          return;
+        }
+        const g = snap.data();
+        statusEl.textContent = g.status === "lobby" ? "대기중" : g.status === "ended" ? "종료됨" : "진행중";
+      } catch (e) {
+        statusEl.textContent = "확인 실패";
+      }
+    })
+  );
+}
+
+async function attemptAdminReconnect(code, pin, errorElId) {
+  const setError = (msg) => {
+    if (errorElId) $(errorElId).textContent = msg || "";
+    else if (msg) alert(msg);
+  };
+  if (!/^\d{4}$/.test(code || "")) {
+    setError("4자리 숫자 코드를 입력해주세요.");
+    return;
+  }
+  if (!/^\d{4}$/.test(pin || "")) {
+    setError("4자리 숫자 비밀번호를 입력해주세요.");
+    return;
+  }
+  try {
+    const snap = await db.collection("games").doc(code).get();
+    if (!snap.exists) {
+      setError("존재하지 않는 코드입니다.");
+      return;
+    }
+    const game = snap.data();
+    const correctPin = game.adminPin || "0000";
+    if (pin !== correctPin) {
+      setError("비밀번호가 올바르지 않습니다.");
+      return;
+    }
+    setError("");
+    addAdminHistory(code);
+    saveSession({ code, role: "admin" });
+    startAdminSession(code);
+  } catch (err) {
+    console.error(err);
+    setError("재접속 중 오류가 발생했습니다: " + err.message);
+  }
+}
+
+$("btnReconnectAdmin").addEventListener("click", () => {
+  const code = $("inputReconnectCode").value.trim();
+  const pin = $("inputReconnectPin").value.trim();
+  attemptAdminReconnect(code, pin, "reconnectError");
 });
 
 /* ------------------------------------------------------------
@@ -405,7 +538,7 @@ function renderAdmin(code, game, players) {
     `;
     $("btnNewGame").addEventListener("click", () => {
       clearSession();
-      showScreen("screen-create");
+      enterCreateScreen();
     });
     return;
   }

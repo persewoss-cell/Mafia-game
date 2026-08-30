@@ -272,6 +272,14 @@ body.theme-night .player-list li { background: rgba(255,255,255,0.06); }
   text-align: center;
   word-break: keep-all;
 }
+.admin-history-item {
+  cursor: pointer;
+  border: 2px solid transparent;
+  line-height: 1.5;
+}
+.admin-history-item:active { transform: scale(0.96); border-color: var(--accent); }
+.admin-history-item .history-status { font-size: 0.75rem; }
+
 .lobby-list li.lobby-empty {
   grid-column: 1 / -1;
   color: var(--text-sub);

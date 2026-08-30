@@ -42,12 +42,31 @@
       <h1>게임 만들기</h1>
       <p>참가 인원 수를 정해주세요</p>
     </div>
+
+    <div class="card" id="adminHistoryCard" hidden>
+      <h3 style="margin-top:0;">🕘 최근에 만든 게임방</h3>
+      <ul class="lobby-list" id="adminHistoryList"></ul>
+      <p class="sub-text">방을 누르면 관리자 비밀번호를 입력해 다시 들어갈 수 있어요.</p>
+    </div>
+
     <div class="card">
       <label for="inputMaxPlayers">참가 인원 수 (최소 3명)</label>
       <input type="number" id="inputMaxPlayers" min="3" placeholder="예: 8" />
+      <label for="inputAdminPin">관리자 비밀번호 (4자리, 비워두면 0000)</label>
+      <input type="text" id="inputAdminPin" inputmode="numeric" maxlength="4" placeholder="0000" />
       <p id="createError" class="error-text"></p>
       <button class="big-btn" id="btnCreateGame">코드 생성하고 게임 만들기</button>
       <button class="big-btn ghost" id="btnBackHome1">← 뒤로가기</button>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">🔑 코드로 관리자 재접속</h3>
+      <label for="inputReconnectCode">게임 코드</label>
+      <input type="text" id="inputReconnectCode" inputmode="numeric" maxlength="4" placeholder="0000" />
+      <label for="inputReconnectPin">관리자 비밀번호</label>
+      <input type="text" id="inputReconnectPin" inputmode="numeric" maxlength="4" placeholder="0000" />
+      <p id="reconnectError" class="error-text"></p>
+      <button class="big-btn secondary" id="btnReconnectAdmin">관리자로 재접속</button>
     </div>
   </section>
 
