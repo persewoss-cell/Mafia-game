@@ -54,6 +54,8 @@ function showScreen(id) {
   $(id).classList.add("active");
   const leaveBtn = $("btnLeaveTopRight");
   if (leaveBtn) leaveBtn.hidden = !(id === "screen-admin" || id === "screen-player");
+  const endGameBtn = $("btnEndGameTopRight");
+  if (endGameBtn) endGameBtn.hidden = id !== "screen-admin";
 }
 
 function setTheme(phase) {
@@ -168,6 +170,22 @@ $("btnLeaveTopRight").addEventListener("click", () => {
 
   clearSession();
   showScreen("screen-home");
+});
+
+/* ------------------------------------------------------------
+   게임 강제 종료 (관리자 전용, 나가기 버튼 옆 고정 버튼)
+   ------------------------------------------------------------ */
+$("btnEndGameTopRight").addEventListener("click", async () => {
+  const session = loadSession();
+  if (!session || session.role !== "admin") return;
+  if (!confirm("정말로 게임을 강제 종료하시겠습니까? 모든 참가자가 자동으로 나가게 됩니다.")) return;
+
+  try {
+    await gameRef(session.code).update({ status: "terminated", revealDeadline: null });
+  } catch (err) {
+    console.error(err);
+    alert("게임 종료 중 오류가 발생했습니다: " + err.message);
+  }
 });
 
 /* ------------------------------------------------------------
@@ -303,7 +321,14 @@ async function renderAdminHistoryList() {
           return;
         }
         const g = snap.data();
-        statusEl.textContent = g.status === "lobby" ? "대기중" : g.status === "ended" ? "종료됨" : "진행중";
+        statusEl.textContent =
+          g.status === "lobby"
+            ? "대기중"
+            : g.status === "ended"
+            ? "종료됨"
+            : g.status === "terminated"
+            ? "강제 종료됨"
+            : "진행중";
       } catch (e) {
         statusEl.textContent = "확인 실패";
       }
@@ -331,6 +356,10 @@ async function attemptAdminReconnect(code, pin, errorElId) {
       return;
     }
     const game = snap.data();
+    if (game.status === "terminated") {
+      setError("관리자가 강제 종료한 게임입니다. 새 게임을 만들어주세요.");
+      return;
+    }
     const correctPin = game.adminPin || "0000";
     if (pin !== correctPin) {
       setError("비밀번호가 올바르지 않습니다.");
@@ -516,7 +545,17 @@ function startAdminSession(code) {
       showScreen("screen-home");
       return;
     }
-    latestGame = snap.data();
+    const data = snap.data();
+    if (data.status === "terminated") {
+      alert("게임이 종료되었습니다. 처음 화면으로 돌아갑니다.");
+      if (adminUnsubGame) adminUnsubGame();
+      if (adminUnsubPlayers) adminUnsubPlayers();
+      if (adminTickInterval) clearInterval(adminTickInterval);
+      clearSession();
+      showScreen("screen-home");
+      return;
+    }
+    latestGame = data;
     setTheme(latestGame.phase);
     rerender();
   });
@@ -1070,7 +1109,17 @@ function startPlayerSession(code, playerId) {
       showScreen("screen-home");
       return;
     }
-    latestGame = snap.data();
+    const data = snap.data();
+    if (data.status === "terminated") {
+      alert("관리자가 게임을 종료했습니다. 처음 화면으로 돌아갑니다.");
+      if (playerUnsubGame) playerUnsubGame();
+      if (playerUnsubPlayers) playerUnsubPlayers();
+      if (playerTickInterval) clearInterval(playerTickInterval);
+      clearSession();
+      showScreen("screen-home");
+      return;
+    }
+    latestGame = data;
     setTheme(latestGame.phase);
     rerender();
   });
@@ -1194,10 +1243,11 @@ function renderPlayerAction(code, playerId, game, players, me) {
       const eligibleCount = aliveList(players).length;
       const gridPlayers = isTie ? players.filter((p) => !p.alive || candidates.includes(p.id)) : players;
       const tieNames = players.filter((p) => candidates.includes(p.id)).map((p) => p.name).join(", ");
+      const tieCount = (game.voteRound || 1) - 1;
       return `
         ${
           isTie
-            ? `<div class="tie-banner">🤝 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
+            ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
             : `<p class="center-text sub-text">마피아로 의심되는 사람이 있으면 투표해주세요. 모든 사람이 투표하면 결과가 나옵니다.</p>`
         }
         <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명</p>
@@ -1224,10 +1274,11 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const eligibleCount = aliveList(players).filter((p) => p.role === "mafia").length;
         const gridPlayers = isTie ? players.filter((p) => !p.alive || candidates.includes(p.id)) : players;
         const tieNames = players.filter((p) => candidates.includes(p.id)).map((p) => p.name).join(", ");
+        const tieCount = (game.nightRound || 1) - 1;
         return `
           ${
             isTie
-              ? `<div class="tie-banner">🤝 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
+              ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
               : `<p class="center-text sub-text">제거할 시민을 선택하세요.</p>`
           }
           <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명 (마피아)</p>

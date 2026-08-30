@@ -23,7 +23,10 @@
   });
 </script>
 <div id="fatalError" class="fatal-error"></div>
-<button id="btnLeaveTopRight" class="corner-leave-btn" hidden>🚪 나가기</button>
+<div class="corner-btn-group">
+  <button id="btnEndGameTopRight" class="corner-btn corner-end-btn" hidden>🛑 게임 종료</button>
+  <button id="btnLeaveTopRight" class="corner-btn corner-leave-btn" hidden>🚪 나가기</button>
+</div>
 <div id="app">
 
   <!-- 홈 화면 -->
@@ -89,6 +92,7 @@
 
   <!-- 관리자 콘솔 화면 -->
   <section id="screen-admin" class="screen">
+    <div class="admin-mode-badge">👑 관리자 모드</div>
     <div id="adminContent"></div>
   </section>
 

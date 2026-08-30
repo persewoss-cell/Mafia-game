@@ -47,23 +47,40 @@ body.theme-night .panel {
 
 body.theme-night .sub-text { color: #b9b6da; }
 
-.corner-leave-btn {
+.corner-btn-group {
   position: fixed;
   top: 12px;
   right: 12px;
   z-index: 40;
-  padding: 10px 18px;
+  display: flex;
+  gap: 8px;
+}
+.corner-btn {
+  padding: 10px 16px;
   border: none;
   border-radius: 999px;
-  background: rgba(20, 15, 35, 0.65);
   color: #ffffff;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  white-space: nowrap;
 }
-.corner-leave-btn:active { transform: scale(0.96); }
-.corner-leave-btn[hidden] { display: none; }
+.corner-btn:active { transform: scale(0.96); }
+.corner-btn[hidden] { display: none; }
+.corner-leave-btn { background: rgba(20, 15, 35, 0.65); }
+.corner-end-btn { background: #c23b3b; }
+
+.admin-mode-badge {
+  display: inline-block;
+  background: #7a54d4;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
 
 .fatal-error {
   display: none;
