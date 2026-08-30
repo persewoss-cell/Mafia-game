@@ -1,1 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
+<title>마피아 게임</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
 
+  <!-- 홈 화면 -->
+  <section id="screen-home" class="screen">
+    <div class="title-row">
+      <h1>🕵️ 마피아 게임</h1>
+      <p>다같이 즐기는 추리 게임</p>
+    </div>
+    <button class="big-btn" id="btnGoCreate">🛠️ 게임 만들기 (관리자)</button>
+    <button class="big-btn secondary" id="btnGoJoin">🙋 게임 참가하기</button>
+  </section>
+
+  <!-- 게임 생성 화면 (관리자) -->
+  <section id="screen-create" class="screen">
+    <div class="title-row">
+      <h1>게임 만들기</h1>
+      <p>참가 인원 수를 정해주세요</p>
+    </div>
+    <div class="card">
+      <label for="inputMaxPlayers">참가 인원 수 (최소 3명)</label>
+      <input type="number" id="inputMaxPlayers" min="3" placeholder="예: 8" />
+      <p id="createError" class="error-text"></p>
+      <button class="big-btn" id="btnCreateGame">코드 생성하고 게임 만들기</button>
+      <button class="big-btn ghost" id="btnBackHome1">← 뒤로가기</button>
+    </div>
+  </section>
+
+  <!-- 참가 화면 -->
+  <section id="screen-join" class="screen">
+    <div class="title-row">
+      <h1>게임 참가하기</h1>
+      <p>관리자에게 받은 4자리 코드를 입력하세요</p>
+    </div>
+    <div class="card">
+      <label for="inputCode">참가 코드</label>
+      <input type="text" id="inputCode" inputmode="numeric" maxlength="4" placeholder="0000" />
+      <label for="inputName">내 이름</label>
+      <input type="text" id="inputName" maxlength="10" placeholder="이름을 입력하세요" style="letter-spacing:normal;" />
+      <p id="joinError" class="error-text"></p>
+      <button class="big-btn" id="btnJoinGame">입장하기</button>
+      <button class="big-btn ghost" id="btnBackHome2">← 뒤로가기</button>
+    </div>
+  </section>
+
+  <!-- 관리자 콘솔 화면 -->
+  <section id="screen-admin" class="screen">
+    <div id="adminContent"></div>
+  </section>
+
+  <!-- 참가자(플레이어) 화면 -->
+  <section id="screen-player" class="screen">
+    <div id="playerContent"></div>
+  </section>
+
+  <p class="footer-note">Firebase 기반 실시간 마피아 게임</p>
+</div>
+
+<!-- 결과 발표 모달 -->
+<div id="modalOverlay" class="modal-overlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
