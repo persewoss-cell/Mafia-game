@@ -326,12 +326,26 @@ body.theme-night .howto-role-list li { background: rgba(255,255,255,0.06); }
   word-break: keep-all;
 }
 .admin-history-item {
+  position: relative;
   cursor: pointer;
   border: 2px solid transparent;
   line-height: 1.5;
 }
 .admin-history-item:active { transform: scale(0.96); border-color: var(--accent); }
 .admin-history-item .history-status { font-size: 0.75rem; }
+.delete-room-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 3px 5px;
+  border-radius: 8px;
+  line-height: 1;
+}
+.delete-room-btn:active { background: rgba(214, 69, 69, 0.2); transform: scale(0.9); }
 
 .lobby-list li.lobby-empty {
   grid-column: 1 / -1;

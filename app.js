@@ -170,12 +170,14 @@ function enterCreateScreen() {
   renderAdminHistoryList();
   showScreen("screen-create");
 }
-$("btnGoJoin").addEventListener("click", () => {
+$("btnGoJoin").addEventListener("click", () => enterJoinScreen());
+
+function enterJoinScreen() {
   $("joinError").textContent = "";
   $("inputCode").value = "";
   $("inputName").value = "";
   showScreen("screen-join");
-});
+}
 $("btnGoHowTo").addEventListener("click", () => showScreen("screen-howto"));
 $("btnBackHome1").addEventListener("click", () => showScreen("screen-home"));
 $("btnBackHome2").addEventListener("click", () => showScreen("screen-home"));
@@ -328,7 +330,10 @@ async function renderAdminHistoryList() {
   list.innerHTML = history
     .map(
       (h) =>
-        `<li class="admin-history-item" data-code="${h.code}">🔑 ${h.code}<br><span class="sub-text history-status">확인 중...</span></li>`
+        `<li class="admin-history-item" data-code="${h.code}">
+          <button type="button" class="delete-room-btn" data-code="${h.code}" title="방 삭제">🗑️</button>
+          🔑 ${h.code}<br><span class="sub-text history-status">확인 중...</span>
+        </li>`
     )
     .join("");
 
@@ -338,6 +343,23 @@ async function renderAdminHistoryList() {
       const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
       if (pin === null) return;
       attemptAdminReconnect(code, pin.trim(), null);
+    });
+  });
+
+  list.querySelectorAll(".delete-room-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const code = btn.dataset.code;
+      if (!confirm(`${code}번 방을 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.`)) return;
+      try {
+        await deleteGameCompletely(code);
+      } catch (err) {
+        console.error(err);
+        alert("방 삭제 중 오류가 발생했습니다: " + err.message);
+        return;
+      }
+      removeAdminHistory(code);
+      renderAdminHistoryList();
     });
   });
 
@@ -624,6 +646,15 @@ function gameRef(code) {
   return db.collection("games").doc(code);
 }
 
+// 게임방과 그 안의 참가자 정보를 Firestore에서 완전히 삭제한다.
+async function deleteGameCompletely(code) {
+  const playersSnap = await gameRef(code).collection("players").get();
+  const batch = db.batch();
+  playersSnap.docs.forEach((doc) => batch.delete(doc.ref));
+  batch.delete(gameRef(code));
+  await batch.commit();
+}
+
 function renderAdmin(code, game, players) {
   const el = $("adminContent");
 
@@ -657,12 +688,39 @@ function renderAdmin(code, game, players) {
     el.innerHTML = revealBox + renderWinnerModalInline(game) + `
       <div class="card center-text">
         <button class="big-btn" id="btnNewGame">🆕 새 게임 만들기</button>
+        <button class="big-btn secondary" id="btnEndOnly">✅ 게임 종료하기</button>
+        <button class="big-btn ghost" id="btnEndAndDelete">🗑️ 게임 종료 및 삭제하기</button>
       </div>
       ${renderAdminRoster(players)}
     `;
     $("btnNewGame").addEventListener("click", () => {
       clearSession();
       enterCreateScreen();
+    });
+    $("btnEndOnly").addEventListener("click", () => {
+      // 방은 "최근에 만든 게임방" 목록에 그대로 남겨두고 나간다.
+      if (adminUnsubGame) adminUnsubGame();
+      if (adminUnsubPlayers) adminUnsubPlayers();
+      if (adminTickInterval) clearInterval(adminTickInterval);
+      clearSession();
+      showScreen("screen-home");
+    });
+    $("btnEndAndDelete").addEventListener("click", async () => {
+      if (!confirm("이 게임방을 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
+      // 삭제 후에도 리스너가 남아있으면 "게임을 찾을 수 없습니다" 알림이 중복으로 뜨므로 먼저 정리한다.
+      if (adminUnsubGame) adminUnsubGame();
+      if (adminUnsubPlayers) adminUnsubPlayers();
+      if (adminTickInterval) clearInterval(adminTickInterval);
+      try {
+        await deleteGameCompletely(code);
+      } catch (err) {
+        console.error(err);
+        alert("방 삭제 중 오류가 발생했습니다: " + err.message);
+        return;
+      }
+      removeAdminHistory(code);
+      clearSession();
+      showScreen("screen-home");
     });
     return;
   }
@@ -1348,9 +1406,17 @@ function renderPlayer(code, playerId, game, players, me) {
         <span style="font-size:3rem;display:block;">${isCitizen ? "🎉" : "🔪"}</span>
         <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
         <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
+        <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
       </div>
       ${renderFinalRoster(players)}
     `;
+    $("btnJoinNewGame").addEventListener("click", () => {
+      if (playerUnsubGame) playerUnsubGame();
+      if (playerUnsubPlayers) playerUnsubPlayers();
+      if (playerTickInterval) clearInterval(playerTickInterval);
+      clearSession();
+      enterJoinScreen();
+    });
     return;
   }
 
