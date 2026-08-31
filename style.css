@@ -216,6 +216,14 @@ body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
   padding: 12px;
 }
 
+.big-btn.tertiary {
+  background: #eef3ff;
+  color: #2f5fd0;
+  border: 2px solid #2f5fd0;
+  box-shadow: none;
+}
+.big-btn.tertiary:hover { background: #dde8ff; }
+
 .big-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
