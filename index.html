@@ -37,6 +37,66 @@
     </div>
     <button class="big-btn" id="btnGoCreate">🛠️ 게임 만들기 (관리자)</button>
     <button class="big-btn secondary" id="btnGoJoin">🙋 게임 참가하기</button>
+    <button class="big-btn ghost" id="btnGoHowTo">📖 게임 방법</button>
+  </section>
+
+  <!-- 게임 방법 화면 -->
+  <section id="screen-howto" class="screen">
+    <div class="title-row">
+      <h1>📖 게임 방법</h1>
+      <p>마피아 게임을 처음 하는 친구도 쉽게 알 수 있어요!</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">1️⃣ 게임 만들기</h3>
+      <p>선생님(관리자)이 "게임 만들기"를 눌러서 몇 명이 할지 정하면, 4자리 숫자 코드가 생겨요.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">2️⃣ 게임 참가하기</h3>
+      <p>친구들은 각자 자기 태블릿이나 휴대폰에서 "게임 참가하기"를 누르고, 코드와 이름을 적으면 방에 들어갈 수 있어요.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">3️⃣ 역할 뽑기</h3>
+      <p>사람 수가 다 모이면 관리자가 게임을 시작해요. 그러면 자동으로 역할이 정해지고, <strong>내 화면에만</strong> 내 역할이 보여요. 다른 사람에게 절대 말하면 안 돼요!</p>
+      <ul class="howto-role-list">
+        <li><span class="badge mafia">🔪 마피아</span> 밤마다 친구를 한 명 골라서 없앨 수 있어요. 마피아끼리는 서로 누가 마피아인지 알아요.</li>
+        <li><span class="badge citizen">🙂 시민</span> 낮에 이야기를 나누며 누가 마피아인지 찾아내야 해요.</li>
+        <li><span class="badge doctor">💉 의사</span> 밤마다 한 명을 골라서 마피아의 공격으로부터 지켜줄 수 있어요. (경찰은 지켜줄 수 없어요!)</li>
+        <li><span class="badge police">🔍 경찰</span> 밤마다 한 명을 조사해서 그 사람이 마피아인지 아닌지 몰래 알아낼 수 있어요. 가끔 조사가 실패할 수도 있어요.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">☀️ 4️⃣ 낮 (토론과 투표)</h3>
+      <p>게임은 항상 낮으로 시작해요. 친구들과 이야기하면서 누가 마피아 같은지 이야기해보고, 의심되는 사람에게 투표하세요. 모두가 투표하면 가장 많이 뽑힌 사람이 탈락하고, 그 사람의 진짜 역할이 공개돼요.</p>
+      <p class="sub-text">동률이 나오면 그 사람들끼리 다시 투표해요. 1명이 될 때까지 계속돼요.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">🌙 5️⃣ 밤 (마피아 → 의사 → 경찰)</h3>
+      <p>낮이 끝나면 밤이 되고, 순서대로 진행돼요.</p>
+      <ol style="padding-left:20px; line-height:1.9;">
+        <li>🔪 마피아들이 없앨 사람을 한 명 정해요.</li>
+        <li>💉 의사가 살릴 사람을 한 명 골라요. (마피아가 노린 사람과 같으면 그 사람은 살아요!)</li>
+        <li>🔍 경찰이 조사할 사람을 한 명 골라요. 결과는 경찰 본인만 볼 수 있어요.</li>
+      </ol>
+      <p>모든 순서가 끝나면 아침이 되면서 밤사이 무슨 일이 있었는지 알려줘요.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">🏆 6️⃣ 누가 이기나요?</h3>
+      <p>🔪 마피아를 <strong>모두 찾아서 탈락</strong>시키면 → <strong>시민 승리!</strong></p>
+      <p>🔪 마피아 수가 나머지 사람 수보다 <strong>같거나 많아지면</strong> → <strong>마피아 승리!</strong></p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">💡 알아두면 좋아요</h3>
+      <p>낮과 밤 모두, 모든 사람이 다 하면 관리자가 버튼을 안 눌러도 자동으로 다음으로 넘어가요. 결과가 나온 뒤에는 몇 초 동안 카운트다운을 하고 자동으로 다음 단계로 넘어가니 화면을 잘 보고 있어야 해요!</p>
+    </div>
+
+    <button class="big-btn ghost" id="btnBackHome3">← 뒤로가기</button>
   </section>
 
   <!-- 게임 생성 화면 (관리자) -->

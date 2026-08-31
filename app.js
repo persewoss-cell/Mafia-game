@@ -153,8 +153,10 @@ $("btnGoJoin").addEventListener("click", () => {
   $("inputName").value = "";
   showScreen("screen-join");
 });
+$("btnGoHowTo").addEventListener("click", () => showScreen("screen-howto"));
 $("btnBackHome1").addEventListener("click", () => showScreen("screen-home"));
 $("btnBackHome2").addEventListener("click", () => showScreen("screen-home"));
+$("btnBackHome3").addEventListener("click", () => showScreen("screen-home"));
 
 /* ------------------------------------------------------------
    게임 나가기 (화면 우측 상단 고정 버튼)
@@ -539,10 +541,6 @@ function startAdminSession(code) {
         if (aliveDoctors.length > 0 && votedCount >= aliveDoctors.length) {
           action = () => closeDoctorVote(code, game, players);
         }
-      } else if (game.nightSubphase === "doctor_done") {
-        if (game.revealDeadline && Date.now() >= game.revealDeadline) {
-          action = () => goToPolicePhase(code, players);
-        }
       } else if (game.nightSubphase === "police_vote") {
         const votedCount = Object.keys(game.policeChecks || {}).length;
         const allDone = alivePolice.length > 0 && votedCount >= alivePolice.length;
@@ -723,7 +721,6 @@ function renderPhaseBanner(game) {
       mafia_revote: "마피아 재투표 중",
       mafia_done: "의사에게 넘어가는 중",
       doctor_vote: "의사가 살릴 사람을 고르는 중",
-      doctor_done: "경찰에게 넘어가는 중",
       police_vote: "경찰이 조사하는 중",
       reveal: "결과 발표",
     };
@@ -890,13 +887,6 @@ function renderAdminControlPanel(code, game, players) {
         <button class="big-btn" id="btnCloseDoctorVote">✅ 의사 선택 마감하고 결과 확인</button>
       </div>`;
     }
-    if (game.nightSubphase === "doctor_done") {
-      return `<div class="admin-panel">
-        <h3>진행 조작</h3>
-        ${renderCountdownText(game.revealDeadline, "🔍 경찰에게 넘어갑니다")}
-        <button class="big-btn" id="btnGoPolice">🔍 지금 바로 경찰에게 넘기기</button>
-      </div>`;
-    }
     if (game.nightSubphase === "police_vote") {
       const votedCount = Object.keys(game.policeChecks || {}).length;
       const allDone = alivePolice.length > 0 && votedCount >= alivePolice.length;
@@ -943,11 +933,6 @@ function wireAdminControlPanel(code, game, players) {
   const btnCloseDoctorVote = $("btnCloseDoctorVote");
   if (btnCloseDoctorVote) {
     btnCloseDoctorVote.addEventListener("click", () => runAdminAction(() => closeDoctorVote(code, game, players)));
-  }
-
-  const btnGoPolice = $("btnGoPolice");
-  if (btnGoPolice) {
-    btnGoPolice.addEventListener("click", () => runAdminAction(() => goToPolicePhase(code, players)));
   }
 
   const btnClosePoliceVote = $("btnClosePoliceVote");
@@ -1108,11 +1093,8 @@ async function closeDoctorVote(code, game, players) {
   if (alivePolice.length === 0) {
     await resolveNight(code, { mafiaTargetId: game.mafiaTargetId, doctorVotes: game.doctorVotes });
   } else {
-    // 경찰 조사로 넘어가기 전 잠깐 카운트다운을 보여준다.
-    await gameRef(code).update({
-      nightSubphase: "doctor_done",
-      revealDeadline: Date.now() + REVEAL_COUNTDOWN_MS,
-    });
+    // 대기 없이 곧바로 경찰 조사로 넘어간다.
+    await goToPolicePhase(code, players);
   }
 }
 
@@ -1125,17 +1107,22 @@ async function resolveNight(code, { mafiaTargetId, doctorVotes }) {
   const players = playersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   let saved = false;
+  let doctorFailed = false;
   let killedName = null;
   let killedRole = null;
 
   if (mafiaTargetId) {
+    const targetPlayer = players.find((pp) => pp.id === mafiaTargetId);
     const savedSet = new Set(Object.values(doctorVotes || {}));
-    saved = savedSet.has(mafiaTargetId);
+    const doctorTriedToSave = savedSet.has(mafiaTargetId);
+    // 의사는 경찰을 살릴 수 없다: 경찰을 선택했더라도 실제로는 구해지지 않는다.
+    const isPolice = targetPlayer && targetPlayer.role === "police";
+    saved = doctorTriedToSave && !isPolice;
+    doctorFailed = doctorTriedToSave && isPolice;
     if (!saved) {
       await gameRef(code).collection("players").doc(mafiaTargetId).update({ alive: false });
-      const p = players.find((pp) => pp.id === mafiaTargetId);
-      killedName = p?.name || "";
-      killedRole = p?.role || "";
+      killedName = targetPlayer?.name || "";
+      killedRole = targetPlayer?.role || "";
     }
   }
 
@@ -1149,6 +1136,7 @@ async function resolveNight(code, { mafiaTargetId, doctorVotes }) {
       targetName: killedName,
       targetRole: killedRole,
       saved,
+      doctorFailed,
       nobody: !mafiaTargetId,
     },
     status: winner ? "ended" : "playing",
@@ -1435,21 +1423,18 @@ function renderPlayerAction(code, playerId, game, players, me) {
       }
       return `<div class="waiting-box"><span class="icon">💉</span><p>의사가 살릴 사람을 고르고 있습니다...</p></div>`;
     }
-    if (game.nightSubphase === "doctor_done") {
-      return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>${renderCountdownText(
-        game.revealDeadline,
-        "🔍 경찰에게 넘어갑니다"
-      )}`;
-    }
     if (game.nightSubphase === "police_vote") {
       if (me.role === "police") {
         const myCheck = game.policeChecks ? game.policeChecks[playerId] : null;
         if (myCheck) {
+          const resultText = myCheck.success
+            ? `<p><strong>${escapeHtml(myCheck.targetName)}</strong>님의 정체는
+                <span class="badge ${myCheck.targetRole}">${roleLabel(myCheck.targetRole)}</span> 입니다.</p>`
+            : `<p><strong>${escapeHtml(myCheck.targetName)}</strong>님에 대한 조사를 실패했습니다.</p>`;
           return `
             <div class="waiting-box">
-              <span class="icon">🔍</span>
-              <p><strong>${escapeHtml(myCheck.targetName)}</strong>님의 정체는
-                <span class="badge ${myCheck.targetRole}">${roleLabel(myCheck.targetRole)}</span> 입니다.</p>
+              <span class="icon">${myCheck.success ? "🔍" : "❓"}</span>
+              ${resultText}
               <p class="sub-text">잘 확인하세요. 다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>
             </div>
             ${renderCountdownText(game.revealDeadline, "다음으로 넘어갑니다")}
@@ -1510,6 +1495,12 @@ function renderNightRevealBox(game, players) {
     inner = `<span class="icon">🌅</span><p>어젯밤은 아무 일도 일어나지 않았습니다.</p>`;
   } else if (r.saved) {
     inner = `<span class="icon">💉</span><p>마피아의 공격이 있었지만 의사 선생님이 살렸습니다!</p>`;
+  } else if (r.doctorFailed) {
+    inner = `
+      <span class="icon">💀</span>
+      <p>의사 선생님이 <strong>${escapeHtml(r.targetName)}</strong>님을 살리려 했지만 실패했습니다.</p>
+      <p class="sub-text">정체는 <span class="badge ${r.targetRole}">${roleLabel(r.targetRole)}</span> 였습니다.</p>
+    `;
   } else {
     inner = `
       <span class="icon">💀</span>
@@ -1561,9 +1552,11 @@ function wirePlayerAction(code, playerId, game, players, me) {
         if (!(game.policeCandidates || []).includes(targetId)) return;
         const target = players.find((p) => p.id === targetId);
         if (!target) return;
-        await gameRef(code).update({
-          [`policeChecks.${playerId}`]: { targetId, targetName: target.name, targetRole: target.role },
-        });
+        // 조사는 50% 확률로 실패할 수 있다.
+        const success = Math.random() < 0.5;
+        const checkResult = { targetId, targetName: target.name, success };
+        if (success) checkResult.targetRole = target.role;
+        await gameRef(code).update({ [`policeChecks.${playerId}`]: checkResult });
       }
     });
   });
