@@ -123,11 +123,18 @@ function shuffle(arr) {
   return a;
 }
 
-// 마피아 = 총원/3, 의사 = (총원-마피아)/5, 경찰 = 의사/2, 시민 = 나머지. 소수는 반올림.
+// 3~6명은 역할이 한쪽으로 쏠리지 않도록 고정 배정을 쓴다.
+// 7명부터는 마피아 = floor(총원/3), 의사 = floor(남은 인원/5), 경찰 = round(의사/2),
+// 시민 = 나머지. (마피아·의사는 버림, 경찰만 반올림)
 function computeRoleCounts(total) {
-  const mafiaCount = Math.round(total / 3);
+  if (total === 3) return { mafiaCount: 1, doctorCount: 1, policeCount: 0, citizenCount: 1 };
+  if (total === 4) return { mafiaCount: 1, doctorCount: 1, policeCount: 1, citizenCount: 1 };
+  if (total === 5) return { mafiaCount: 1, doctorCount: 1, policeCount: 1, citizenCount: 2 };
+  if (total === 6) return { mafiaCount: 1, doctorCount: 1, policeCount: 1, citizenCount: 3 };
+
+  const mafiaCount = Math.floor(total / 3);
   const remaining = total - mafiaCount;
-  const doctorCount = Math.round(remaining / 5);
+  const doctorCount = Math.floor(remaining / 5);
   const policeCount = Math.round(doctorCount / 2);
   const citizenCount = Math.max(0, remaining - doctorCount - policeCount);
   return { mafiaCount, doctorCount, policeCount, citizenCount };
