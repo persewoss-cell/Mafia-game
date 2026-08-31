@@ -59,7 +59,30 @@ function showScreen(id) {
   const endGameBtn = $("btnEndGameTopRight");
   if (endGameBtn) endGameBtn.hidden = id !== "screen-admin";
   if (id !== "screen-player") document.body.classList.remove("player-dead");
+
+  // 브라우저 뒤로가기를 누르면 사이트를 벗어나지 않고 이전 화면으로 돌아가도록
+  // 화면이 바뀔 때마다 히스토리에 기록해둔다. 이미 같은 화면이면 다시 쌓지 않는다.
+  if (!history.state) {
+    history.replaceState({ screen: id }, "", "#" + id);
+  } else if (history.state.screen !== id) {
+    history.pushState({ screen: id }, "", "#" + id);
+  }
 }
+
+window.addEventListener("popstate", (e) => {
+  const targetId = (e.state && e.state.screen) || "screen-home";
+  const session = loadSession();
+
+  if (targetId === "screen-admin" && session && session.role === "admin") {
+    startAdminSession(session.code);
+  } else if (targetId === "screen-player" && session && session.role === "player") {
+    startPlayerSession(session.code, session.playerId);
+  } else if (targetId === "screen-create") {
+    enterCreateScreen();
+  } else {
+    showScreen(targetId);
+  }
+});
 
 function setTheme(phase) {
   document.body.classList.toggle("theme-night", phase === "night");
@@ -199,7 +222,8 @@ $("btnEndGameTopRight").addEventListener("click", async () => {
 /* ------------------------------------------------------------
    게임 생성 (관리자)
    ------------------------------------------------------------ */
-$("btnCreateGame").addEventListener("click", async () => {
+$("formCreateGame").addEventListener("submit", async (e) => {
+  e.preventDefault();
   const maxPlayers = parseInt($("inputMaxPlayers").value, 10);
   const pinRaw = $("inputAdminPin").value.trim();
   $("createError").textContent = "";
@@ -385,7 +409,8 @@ async function attemptAdminReconnect(code, pin, errorElId) {
   }
 }
 
-$("btnReconnectAdmin").addEventListener("click", () => {
+$("formReconnectAdmin").addEventListener("submit", (e) => {
+  e.preventDefault();
   const code = $("inputReconnectCode").value.trim();
   const pin = $("inputReconnectPin").value.trim();
   attemptAdminReconnect(code, pin, "reconnectError");
@@ -394,7 +419,8 @@ $("btnReconnectAdmin").addEventListener("click", () => {
 /* ------------------------------------------------------------
    게임 참가 (플레이어)
    ------------------------------------------------------------ */
-$("btnJoinGame").addEventListener("click", async () => {
+$("formJoinGame").addEventListener("submit", async (e) => {
+  e.preventDefault();
   const code = $("inputCode").value.trim();
   const name = $("inputName").value.trim();
   $("joinError").textContent = "";
@@ -617,11 +643,11 @@ function renderAdmin(code, game, players) {
       </div>
     `;
     const list = $("lobbyPlayerList");
-    if (players.length === 0) {
-      list.innerHTML = `<li class="sub-text lobby-empty">아직 참가자가 없습니다...</li>`;
-    } else {
-      list.innerHTML = players.map((p) => `<li>🙋 ${escapeHtml(p.name)}</li>`).join("");
-    }
+    list.innerHTML = renderLobbyListItems(
+      players,
+      players.map((p) => p.id)
+    );
+    wireLobbyEditButtons(list, code, players);
     $("btnStartGame").addEventListener("click", () => startGame(code, players));
     return;
   }
@@ -751,6 +777,55 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str ?? "";
   return div.innerHTML;
+}
+
+// 대기실 명단을 렌더링한다. editableIds에 포함된 참가자 옆에는 이름 수정(✏️) 버튼을 붙인다.
+function renderLobbyListItems(players, editableIds, selfId) {
+  if (players.length === 0) {
+    return `<li class="sub-text lobby-empty">아직 참가자가 없습니다...</li>`;
+  }
+  return players
+    .map((p) => {
+      const canEdit = editableIds.includes(p.id);
+      const editBtn = canEdit
+        ? `<button type="button" class="edit-name-btn" data-player-id="${p.id}">✏️</button>`
+        : "";
+      const selfTag = p.id === selfId ? " (나)" : "";
+      return `<li>🙋 ${escapeHtml(p.name)}${selfTag}${editBtn}</li>`;
+    })
+    .join("");
+}
+
+function wireLobbyEditButtons(container, code, players) {
+  container.querySelectorAll(".edit-name-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const player = players.find((p) => p.id === btn.dataset.playerId);
+      if (!player) return;
+      renamePlayer(code, player.id, player.name);
+    });
+  });
+}
+
+async function renamePlayer(code, playerId, currentName) {
+  const input = prompt("새 이름을 입력하세요.", currentName);
+  if (input === null) return;
+  const newName = input.trim();
+  if (!newName) {
+    alert("이름을 입력해주세요.");
+    return;
+  }
+  if (newName === currentName) return;
+  try {
+    const existing = await gameRef(code).collection("players").where("name", "==", newName).get();
+    if (!existing.empty) {
+      alert("이미 사용 중인 이름입니다. 다른 이름을 입력해주세요.");
+      return;
+    }
+    await gameRef(code).collection("players").doc(playerId).update({ name: newName });
+  } catch (err) {
+    console.error(err);
+    alert("이름 변경 중 오류가 발생했습니다: " + err.message);
+  }
 }
 
 // mode: 'admin-view' | 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'night-police-vote' | 'plain'
@@ -1255,11 +1330,12 @@ function renderPlayer(code, playerId, game, players, me) {
       <div class="card">
         <p class="center-text">참가 코드: <strong>${game.code}</strong></p>
         <p class="center-text sub-text">${players.length}명 참가 중</p>
-        <ul class="lobby-list">
-          ${players.map((p) => `<li>🙋 ${escapeHtml(p.name)}${p.id === playerId ? " (나)" : ""}</li>`).join("")}
-        </ul>
+        <ul class="lobby-list" id="playerLobbyList"></ul>
       </div>
     `;
+    const list = $("playerLobbyList");
+    list.innerHTML = renderLobbyListItems(players, [playerId], playerId);
+    wireLobbyEditButtons(list, code, players);
     return;
   }
 
