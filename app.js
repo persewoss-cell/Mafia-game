@@ -1428,8 +1428,10 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const myCheck = game.policeChecks ? game.policeChecks[playerId] : null;
         if (myCheck) {
           const resultText = myCheck.success
-            ? `<p><strong>${escapeHtml(myCheck.targetName)}</strong>님의 정체는
-                <span class="badge ${myCheck.targetRole}">${roleLabel(myCheck.targetRole)}</span> 입니다.</p>`
+            ? `<p><strong>${escapeHtml(myCheck.targetName)}</strong>님은
+                <span class="badge ${myCheck.isMafia ? "mafia" : "citizen"}">${
+                myCheck.isMafia ? "마피아" : "마피아 아님"
+              }</span> 입니다.</p>`
             : `<p><strong>${escapeHtml(myCheck.targetName)}</strong>님에 대한 조사를 실패했습니다.</p>`;
           return `
             <div class="waiting-box">
@@ -1552,10 +1554,11 @@ function wirePlayerAction(code, playerId, game, players, me) {
         if (!(game.policeCandidates || []).includes(targetId)) return;
         const target = players.find((p) => p.id === targetId);
         if (!target) return;
-        // 조사는 50% 확률로 실패할 수 있다.
+        // 조사는 50% 확률로 실패할 수 있다. 성공해도 정확한 직업이 아니라
+        // 마피아인지 아닌지만 알려준다.
         const success = Math.random() < 0.5;
         const checkResult = { targetId, targetName: target.name, success };
-        if (success) checkResult.targetRole = target.role;
+        if (success) checkResult.isMafia = target.role === "mafia";
         await gameRef(code).update({ [`policeChecks.${playerId}`]: checkResult });
       }
     });
