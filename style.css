@@ -110,6 +110,21 @@ body.theme-night .sub-text { color: #b9b6da; }
 body.theme-night .code-chip { background: rgba(255,255,255,0.12); color: #f0eefc; }
 body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
 
+#screen-admin.blackout-active .admin-mode-badge { display: none; }
+.admin-blackout {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.admin-blackout .big-btn {
+  max-width: 360px;
+}
+
 .fatal-error {
   display: none;
   max-width: 900px;

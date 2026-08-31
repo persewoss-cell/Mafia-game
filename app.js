@@ -533,11 +533,17 @@ let adminUnsubGame = null;
 let adminUnsubPlayers = null;
 let adminTickInterval = null;
 
+// 관리자도 학생들과 함께 게임에 참여할 수 있으므로, 게임이 시작되면 화면을
+// 검은 화면으로 가려둔다. "다음" 버튼을 눌러야 진행 상황이 보인다.
+let adminScreenHidden = true;
+let adminRerenderFn = null;
+
 function startAdminSession(code) {
   showScreen("screen-admin");
   if (adminUnsubGame) adminUnsubGame();
   if (adminUnsubPlayers) adminUnsubPlayers();
   if (adminTickInterval) clearInterval(adminTickInterval);
+  adminScreenHidden = true;
 
   let latestGame = null;
   let latestPlayers = [];
@@ -547,6 +553,7 @@ function startAdminSession(code) {
     renderAdmin(code, latestGame, latestPlayers);
     maybeAutoAdvance();
   };
+  adminRerenderFn = rerender;
 
   // 결과 발표(reveal) 화면의 카운트다운 숫자가 매초 줄어들도록 주기적으로 다시 그린다.
   adminTickInterval = setInterval(() => {
@@ -664,6 +671,23 @@ async function deleteGameCompletely(code) {
 
 function renderAdmin(code, game, players) {
   const el = $("adminContent");
+  const screenSection = $("screen-admin");
+  if (screenSection) {
+    screenSection.classList.toggle("blackout-active", game.status === "playing" && adminScreenHidden);
+  }
+
+  if (game.status === "playing" && adminScreenHidden) {
+    el.innerHTML = `
+      <div class="admin-blackout">
+        <button class="big-btn" id="btnRevealAdminScreen">▶️ 게임 진행 상황을 보려면 다음 버튼을 누르세요</button>
+      </div>
+    `;
+    $("btnRevealAdminScreen").addEventListener("click", () => {
+      adminScreenHidden = false;
+      if (adminRerenderFn) adminRerenderFn();
+    });
+    return;
+  }
 
   if (game.status === "lobby") {
     el.innerHTML = `
@@ -740,6 +764,7 @@ function renderAdmin(code, game, players) {
       ? renderNightRevealBox(game)
       : "";
   el.innerHTML = `
+    <div class="center-text"><button class="big-btn ghost" id="btnHideAdminScreen">🙈 화면 가리기</button></div>
     ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
     ${renderCountsRow(game, players)}
@@ -748,6 +773,10 @@ function renderAdmin(code, game, players) {
     ${renderAdminControlPanel(code, game, players)}
     ${renderAdminRoster(players)}
   `;
+  $("btnHideAdminScreen").addEventListener("click", () => {
+    adminScreenHidden = true;
+    if (adminRerenderFn) adminRerenderFn();
+  });
   wireAdminControlPanel(code, game, players);
 }
 
