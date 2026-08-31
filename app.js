@@ -31,6 +31,8 @@ const $ = (id) => document.getElementById(id);
 
 // 결과 발표(reveal) 화면에서 다음 단계로 자동으로 넘어가기까지 기다리는 시간.
 const REVEAL_COUNTDOWN_MS = 10000;
+// 경찰 전원이 조사를 마친 뒤, 조사 결과를 읽을 시간을 주고 다음 단계로 넘어가기까지 기다리는 시간.
+const POLICE_RESULT_DELAY_MS = 7000;
 
 // 게임 진행(투표 마감, 다음 단계 이동 등) 관련 쓰기는 이 락을 통해서만 실행한다.
 // 자동 진행 타이머와 관리자의 수동 버튼 클릭이 동시에 눌려도 같은 단계가
@@ -492,7 +494,10 @@ function startAdminSession(code) {
   adminTickInterval = setInterval(() => {
     if (!latestGame) return;
     const inCountdown =
-      (latestGame.daySubphase === "reveal" || latestGame.nightSubphase === "reveal") && latestGame.revealDeadline;
+      (latestGame.daySubphase === "reveal" ||
+        latestGame.nightSubphase === "reveal" ||
+        latestGame.nightSubphase === "police_vote") &&
+      latestGame.revealDeadline;
     if (inCountdown) rerender();
   }, 1000);
 
@@ -539,7 +544,11 @@ function startAdminSession(code) {
         }
       } else if (game.nightSubphase === "police_vote") {
         const votedCount = Object.keys(game.policeChecks || {}).length;
-        if (alivePolice.length > 0 && votedCount >= alivePolice.length) {
+        const allDone = alivePolice.length > 0 && votedCount >= alivePolice.length;
+        if (allDone && !game.revealDeadline) {
+          // 전원 조사 완료: 결과를 읽을 시간을 준 뒤 자동으로 넘어간다.
+          action = () => gameRef(code).update({ revealDeadline: Date.now() + POLICE_RESULT_DELAY_MS });
+        } else if (allDone && game.revealDeadline && Date.now() >= game.revealDeadline) {
           action = () => closePolicePhase(code, game, players);
         }
       } else if (game.nightSubphase === "reveal") {
@@ -889,10 +898,12 @@ function renderAdminControlPanel(code, game, players) {
     }
     if (game.nightSubphase === "police_vote") {
       const votedCount = Object.keys(game.policeChecks || {}).length;
+      const allDone = alivePolice.length > 0 && votedCount >= alivePolice.length;
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
         <p class="sub-text">경찰 조사 현황: ${votedCount} / ${alivePolice.length}명 완료${renderNonVoterList(alivePolice, game.policeChecks, "미선택자")}</p>
-        <button class="big-btn" id="btnClosePoliceVote">✅ 경찰 조사 마감하고 결과 확인</button>
+        ${allDone ? renderCountdownText(game.revealDeadline, "☀️ 결과 확인으로 넘어갑니다") : ""}
+        <button class="big-btn" id="btnClosePoliceVote">✅ ${allDone ? "지금 바로 결과 확인" : "경찰 조사 마감하고 결과 확인"}</button>
       </div>`;
     }
     if (game.nightSubphase === "reveal") {
@@ -1198,7 +1209,10 @@ function startPlayerSession(code, playerId) {
   playerTickInterval = setInterval(() => {
     if (!latestGame) return;
     const inCountdown =
-      (latestGame.daySubphase === "reveal" || latestGame.nightSubphase === "reveal") && latestGame.revealDeadline;
+      (latestGame.daySubphase === "reveal" ||
+        latestGame.nightSubphase === "reveal" ||
+        latestGame.nightSubphase === "police_vote") &&
+      latestGame.revealDeadline;
     if (inCountdown) rerender();
   }, 1000);
 
@@ -1434,8 +1448,9 @@ function renderPlayerAction(code, playerId, game, players, me) {
               <span class="icon">🔍</span>
               <p><strong>${escapeHtml(myCheck.targetName)}</strong>님의 정체는
                 <span class="badge ${myCheck.targetRole}">${roleLabel(myCheck.targetRole)}</span> 입니다.</p>
-              <p class="sub-text">다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>
+              <p class="sub-text">잘 확인하세요. 다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>
             </div>
+            ${renderCountdownText(game.revealDeadline, "다음으로 넘어갑니다")}
           `;
         }
         const candidates = game.policeCandidates || [];
@@ -1451,7 +1466,10 @@ function renderPlayerAction(code, playerId, game, players, me) {
           })}
         `;
       }
-      return `<div class="waiting-box"><span class="icon">🔍</span><p>경찰이 조사하고 있습니다...</p></div>`;
+      return `<div class="waiting-box"><span class="icon">🔍</span><p>경찰이 조사하고 있습니다...</p></div>${renderCountdownText(
+        game.revealDeadline,
+        "다음으로 넘어갑니다"
+      )}`;
     }
     if (game.nightSubphase === "reveal") {
       return renderNightRevealBox(game, players);
