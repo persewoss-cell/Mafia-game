@@ -803,6 +803,21 @@ function renderCodeChip(code) {
   return `<div class="center-text"><span class="code-chip">🔑 코드 ${code}</span></div>`;
 }
 
+// 밤에 실제로 행동하는 역할(마피아/의사/경찰)이 아닌 사람에게도 똑같이 생긴 선택 화면을
+// 보여준다. 실제로 어떤 카드를 눌러도 게임 상태에는 아무 영향이 없다 (겉모습만 동일).
+// 이렇게 하면 옆에서 봤을 때 누가 진짜로 밤 행동을 하는지 구분할 수 없다.
+function renderDecoyVote(players, myId, candidates, promptText) {
+  return `
+    <p class="center-text sub-text">${promptText}</p>
+    <p class="center-text sub-text">(선택해도 게임에는 전혀 반영되지 않습니다)</p>
+    ${renderPlayerGrid(players, {
+      mode: "decoy-vote",
+      myId,
+      candidates,
+    })}
+  `;
+}
+
 /* ------------------------------------------------------------
    낮/밤 공통 표시 요소
    ------------------------------------------------------------ */
@@ -899,7 +914,7 @@ async function renamePlayer(code, playerId, currentName) {
   }
 }
 
-// mode: 'admin-view' | 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'night-police-vote' | 'plain'
+// mode: 'admin-view' | 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'night-police-vote' | 'decoy-vote' | 'plain'
 function renderPlayerGrid(players, opts) {
   const { mode, myId, selectedId, candidates } = opts;
   const showRoleReveal = mode === "admin-view" || mode === "plain-with-reveal";
@@ -913,7 +928,8 @@ function renderPlayerGrid(players, opts) {
           (mode === "day-vote" ||
             mode === "night-mafia-vote" ||
             mode === "night-doctor-vote" ||
-            mode === "night-police-vote") &&
+            mode === "night-police-vote" ||
+            mode === "decoy-vote") &&
           !isDead &&
           isCandidate &&
           p.id !== myId;
@@ -1552,7 +1568,12 @@ function renderPlayerAction(code, playerId, game, players, me) {
           })}
         `;
       }
-      return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>`;
+      return renderDecoyVote(
+        players,
+        playerId,
+        game.nightCandidates || [],
+        "만약 당신이 마피아라면, 누구를 선택해서 죽이겠습니까?"
+      );
     }
     if (game.nightSubphase === "mafia_done") {
       const nextIsDoctor = aliveList(players).some((p) => p.role === "doctor");
@@ -1578,7 +1599,12 @@ function renderPlayerAction(code, playerId, game, players, me) {
           })}
         `;
       }
-      return `<div class="waiting-box"><span class="icon">💉</span><p>의사가 살릴 사람을 고르고 있습니다...</p></div>`;
+      return renderDecoyVote(
+        players,
+        playerId,
+        players.filter((p) => p.alive).map((p) => p.id),
+        "만약 당신이 의사라면, 누구를 선택해서 살리겠습니까?"
+      );
     }
     if (game.nightSubphase === "police_vote") {
       if (me.role === "police") {
@@ -1612,10 +1638,15 @@ function renderPlayerAction(code, playerId, game, players, me) {
           })}
         `;
       }
-      return `<div class="waiting-box"><span class="icon">🔍</span><p>경찰이 조사하고 있습니다...</p></div>${renderCountdownText(
-        game.revealDeadline,
-        "다음으로 넘어갑니다"
-      )}`;
+      return `
+        ${renderDecoyVote(
+          players,
+          playerId,
+          game.policeCandidates || [],
+          "만약 당신이 경찰이라면, 누구를 선택해서 조사하겠습니까?"
+        )}
+        ${renderCountdownText(game.revealDeadline, "다음으로 넘어갑니다")}
+      `;
     }
     if (game.nightSubphase === "reveal") {
       return renderNightRevealBox(game, players);
@@ -1688,6 +1719,11 @@ function wirePlayerAction(code, playerId, game, players, me) {
         me.role === "police" &&
         !(game.policeChecks && game.policeChecks[playerId])
       ? "night-police"
+      : game.phase === "night" &&
+        (((game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") && me.role !== "mafia") ||
+          (game.nightSubphase === "doctor_vote" && me.role !== "doctor") ||
+          (game.nightSubphase === "police_vote" && me.role !== "police"))
+      ? "decoy"
       : null;
 
   if (!mode) return;
@@ -1696,6 +1732,13 @@ function wirePlayerAction(code, playerId, game, players, me) {
     card.addEventListener("click", async () => {
       const targetId = card.dataset.playerId;
       if (targetId === playerId) return;
+
+      if (mode === "decoy") {
+        if (card.classList.contains("not-selectable")) return;
+        grid.querySelectorAll(".player-card.selected").forEach((c) => c.classList.remove("selected"));
+        card.classList.add("selected");
+        return;
+      }
 
       if (mode === "day") {
         if (!(game.voteCandidates || []).includes(targetId)) return;
