@@ -97,23 +97,26 @@ function shuffle(arr) {
   return a;
 }
 
-// 마피아 = 총원/3, 의사 = (총원-마피아)/5, 시민 = 나머지. 소수는 반올림.
+// 마피아 = 총원/3, 의사 = (총원-마피아)/5, 경찰 = 의사/2, 시민 = 나머지. 소수는 반올림.
 function computeRoleCounts(total) {
   const mafiaCount = Math.round(total / 3);
   const remaining = total - mafiaCount;
   const doctorCount = Math.round(remaining / 5);
-  const citizenCount = remaining - doctorCount;
-  return { mafiaCount, doctorCount, citizenCount };
+  const policeCount = Math.round(doctorCount / 2);
+  const citizenCount = Math.max(0, remaining - doctorCount - policeCount);
+  return { mafiaCount, doctorCount, policeCount, citizenCount };
 }
 
 function roleLabel(role) {
   if (role === "mafia") return "마피아";
   if (role === "doctor") return "의사";
+  if (role === "police") return "경찰";
   return "시민";
 }
 function roleEmoji(role) {
   if (role === "mafia") return "🔪";
   if (role === "doctor") return "💉";
+  if (role === "police") return "🔍";
   return "🙂";
 }
 
@@ -237,6 +240,8 @@ $("btnCreateGame").addEventListener("click", async () => {
       nightRound: 1,
       mafiaTargetId: null,
       doctorVotes: {},
+      policeCandidates: [],
+      policeChecks: {},
       lastNightResult: null,
       winner: null,
       winnerTrigger: null,
@@ -512,6 +517,7 @@ function startAdminSession(code) {
     } else if (game.phase === "night") {
       const aliveMafia = alivePlayers.filter((p) => p.role === "mafia");
       const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
+      const alivePolice = alivePlayers.filter((p) => p.role === "police");
 
       if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
         const votedCount = Object.keys(game.nightVotes || {}).length;
@@ -520,12 +526,21 @@ function startAdminSession(code) {
         }
       } else if (game.nightSubphase === "mafia_done") {
         if (game.revealDeadline && Date.now() >= game.revealDeadline) {
-          action = () => goToDoctorPhase(code);
+          action = () => goToDoctorPhase(code, players);
         }
       } else if (game.nightSubphase === "doctor_vote") {
         const votedCount = Object.keys(game.doctorVotes || {}).length;
         if (aliveDoctors.length > 0 && votedCount >= aliveDoctors.length) {
           action = () => closeDoctorVote(code, game, players);
+        }
+      } else if (game.nightSubphase === "doctor_done") {
+        if (game.revealDeadline && Date.now() >= game.revealDeadline) {
+          action = () => goToPolicePhase(code, players);
+        }
+      } else if (game.nightSubphase === "police_vote") {
+        const votedCount = Object.keys(game.policeChecks || {}).length;
+        if (alivePolice.length > 0 && votedCount >= alivePolice.length) {
+          action = () => closePolicePhase(code, game, players);
         }
       } else if (game.nightSubphase === "reveal") {
         if (game.revealDeadline && Date.now() >= game.revealDeadline) {
@@ -619,9 +634,16 @@ function renderAdmin(code, game, players) {
   }
 
   // playing
+  const liveRevealBox =
+    game.phase === "day" && game.daySubphase === "reveal"
+      ? renderDayRevealBox(game)
+      : game.phase === "night" && game.nightSubphase === "reveal"
+      ? renderNightRevealBox(game)
+      : "";
   el.innerHTML = `
     ${renderPhaseBanner(game)}
     ${renderCountsRow(game, players)}
+    ${liveRevealBox}
     ${renderPlayerGrid(players, { mode: "admin-view" })}
     ${renderAdminControlPanel(code, game, players)}
     ${renderAdminRoster(players)}
@@ -647,10 +669,11 @@ function renderAdminRoster(players) {
 
 async function startGame(code, players) {
   if (players.length < 3) return;
-  const { mafiaCount, doctorCount, citizenCount } = computeRoleCounts(players.length);
+  const { mafiaCount, doctorCount, policeCount, citizenCount } = computeRoleCounts(players.length);
   const roles = [
     ...Array(mafiaCount).fill("mafia"),
     ...Array(doctorCount).fill("doctor"),
+    ...Array(policeCount).fill("police"),
     ...Array(citizenCount).fill("citizen"),
   ];
   const shuffledRoles = shuffle(roles);
@@ -669,6 +692,8 @@ async function startGame(code, players) {
     voteCandidates: players.map((p) => p.id),
     voteRound: 1,
     winner: null,
+    policeCandidates: [],
+    policeChecks: {},
   });
   await batch.commit();
 }
@@ -688,6 +713,8 @@ function renderPhaseBanner(game) {
       mafia_revote: "마피아 재투표 중",
       mafia_done: "의사에게 넘어가는 중",
       doctor_vote: "의사가 살릴 사람을 고르는 중",
+      doctor_done: "경찰에게 넘어가는 중",
+      police_vote: "경찰이 조사하는 중",
       reveal: "결과 발표",
     };
     return `<div class="phase-banner">🌙 밤 ${game.dayNumber}일차 - ${labels[game.nightSubphase] || ""}
@@ -701,12 +728,14 @@ function renderCountsRow(game, players) {
   const aliveMafia = countByRole(players, "mafia");
   const aliveCitizen = countByRole(players, "citizen");
   const aliveDoctor = countByRole(players, "doctor");
+  const alivePolice = countByRole(players, "police");
   return `
     <div class="counts-row">
       <div class="count-pill"><span class="num">${total}</span><span class="label">총 인원</span></div>
       <div class="count-pill"><span class="num">${aliveMafia}</span><span class="label">생존 마피아</span></div>
       <div class="count-pill"><span class="num">${aliveCitizen}</span><span class="label">생존 시민</span></div>
       <div class="count-pill"><span class="num">${aliveDoctor}</span><span class="label">생존 의사</span></div>
+      <div class="count-pill"><span class="num">${alivePolice}</span><span class="label">생존 경찰</span></div>
     </div>
   `;
 }
@@ -717,7 +746,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// mode: 'admin-view' | 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'plain'
+// mode: 'admin-view' | 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'night-police-vote' | 'plain'
 function renderPlayerGrid(players, opts) {
   const { mode, myId, selectedId, candidates } = opts;
   const showRoleReveal = mode === "admin-view" || mode === "plain-with-reveal";
@@ -728,7 +757,10 @@ function renderPlayerGrid(players, opts) {
         const isDead = !p.alive;
         const isCandidate = candidates ? candidates.includes(p.id) : true;
         const clickable =
-          (mode === "day-vote" || mode === "night-mafia-vote" || mode === "night-doctor-vote") &&
+          (mode === "day-vote" ||
+            mode === "night-mafia-vote" ||
+            mode === "night-doctor-vote" ||
+            mode === "night-police-vote") &&
           !isDead &&
           isCandidate &&
           p.id !== myId;
@@ -784,6 +816,14 @@ function renderTallyList(counts, players) {
   </ul>`;
 }
 
+// 관리자 패널에 아직 투표/선택하지 않은 사람 명단을 " / 미투표자: A, B" 형태로 덧붙인다.
+function renderNonVoterList(eligiblePlayers, responseMap, label) {
+  const respondedIds = new Set(Object.keys(responseMap || {}));
+  const remaining = eligiblePlayers.filter((p) => !respondedIds.has(p.id));
+  if (remaining.length === 0) return "";
+  return ` / ${label}: ${remaining.map((p) => escapeHtml(p.name)).join(", ")}`;
+}
+
 function renderAdminControlPanel(code, game, players) {
   const alivePlayers = aliveList(players);
 
@@ -794,7 +834,7 @@ function renderAdminControlPanel(code, game, players) {
       const eligibleVoters = alivePlayers.length;
       return `<div class="admin-panel">
         <h3>진행 조작 ${game.voteRound > 1 ? `(재투표 ${game.voteRound}회차)` : ""}</h3>
-        <p class="sub-text">투표 현황: ${votedCount} / ${eligibleVoters}명 투표 완료</p>
+        <p class="sub-text">투표 현황: ${votedCount} / ${eligibleVoters}명 투표 완료${renderNonVoterList(alivePlayers, game.votes, "미투표자")}</p>
         ${renderTallyList(counts, players)}
         <button class="big-btn" id="btnCloseVote">✅ 투표 마감하고 결과 확인</button>
       </div>`;
@@ -811,30 +851,48 @@ function renderAdminControlPanel(code, game, players) {
   if (game.phase === "night") {
     const aliveMafia = alivePlayers.filter((p) => p.role === "mafia");
     const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
+    const alivePolice = alivePlayers.filter((p) => p.role === "police");
 
     if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
       const counts = tally(game.nightVotes, game.nightCandidates);
       const votedCount = Object.keys(game.nightVotes || {}).length;
       return `<div class="admin-panel">
         <h3>진행 조작 ${game.nightRound > 1 ? `(재투표 ${game.nightRound}회차)` : ""}</h3>
-        <p class="sub-text">마피아 투표 현황: ${votedCount} / ${aliveMafia.length}명 투표 완료</p>
+        <p class="sub-text">마피아 투표 현황: ${votedCount} / ${aliveMafia.length}명 투표 완료${renderNonVoterList(aliveMafia, game.nightVotes, "미투표자")}</p>
         ${renderTallyList(counts, players)}
         <button class="big-btn" id="btnCloseMafiaVote">✅ 마피아 투표 마감</button>
       </div>`;
     }
     if (game.nightSubphase === "mafia_done") {
+      const nextIsDoctor = aliveDoctors.length > 0;
+      const nextLabel = nextIsDoctor ? "💉 의사에게 넘어갑니다" : "🔍 경찰에게 넘어갑니다";
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
-        ${renderCountdownText(game.revealDeadline, "💉 의사에게 넘어갑니다")}
-        <button class="big-btn" id="btnGoDoctor">💉 지금 바로 의사에게 넘기기</button>
+        ${renderCountdownText(game.revealDeadline, nextLabel)}
+        <button class="big-btn" id="btnGoDoctor">${nextIsDoctor ? "💉" : "🔍"} 지금 바로 넘기기</button>
       </div>`;
     }
     if (game.nightSubphase === "doctor_vote") {
       const votedCount = Object.keys(game.doctorVotes || {}).length;
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
-        <p class="sub-text">의사 선택 현황: ${votedCount} / ${aliveDoctors.length}명 완료</p>
+        <p class="sub-text">의사 선택 현황: ${votedCount} / ${aliveDoctors.length}명 완료${renderNonVoterList(aliveDoctors, game.doctorVotes, "미선택자")}</p>
         <button class="big-btn" id="btnCloseDoctorVote">✅ 의사 선택 마감하고 결과 확인</button>
+      </div>`;
+    }
+    if (game.nightSubphase === "doctor_done") {
+      return `<div class="admin-panel">
+        <h3>진행 조작</h3>
+        ${renderCountdownText(game.revealDeadline, "🔍 경찰에게 넘어갑니다")}
+        <button class="big-btn" id="btnGoPolice">🔍 지금 바로 경찰에게 넘기기</button>
+      </div>`;
+    }
+    if (game.nightSubphase === "police_vote") {
+      const votedCount = Object.keys(game.policeChecks || {}).length;
+      return `<div class="admin-panel">
+        <h3>진행 조작</h3>
+        <p class="sub-text">경찰 조사 현황: ${votedCount} / ${alivePolice.length}명 완료${renderNonVoterList(alivePolice, game.policeChecks, "미선택자")}</p>
+        <button class="big-btn" id="btnClosePoliceVote">✅ 경찰 조사 마감하고 결과 확인</button>
       </div>`;
     }
     if (game.nightSubphase === "reveal") {
@@ -867,12 +925,22 @@ function wireAdminControlPanel(code, game, players) {
 
   const btnGoDoctor = $("btnGoDoctor");
   if (btnGoDoctor) {
-    btnGoDoctor.addEventListener("click", () => runAdminAction(() => goToDoctorPhase(code)));
+    btnGoDoctor.addEventListener("click", () => runAdminAction(() => goToDoctorPhase(code, players)));
   }
 
   const btnCloseDoctorVote = $("btnCloseDoctorVote");
   if (btnCloseDoctorVote) {
     btnCloseDoctorVote.addEventListener("click", () => runAdminAction(() => closeDoctorVote(code, game, players)));
+  }
+
+  const btnGoPolice = $("btnGoPolice");
+  if (btnGoPolice) {
+    btnGoPolice.addEventListener("click", () => runAdminAction(() => goToPolicePhase(code, players)));
+  }
+
+  const btnClosePoliceVote = $("btnClosePoliceVote");
+  if (btnClosePoliceVote) {
+    btnClosePoliceVote.addEventListener("click", () => runAdminAction(() => closePolicePhase(code, game, players)));
   }
 
   const btnGoDay = $("btnGoDay");
@@ -891,15 +959,33 @@ async function goToNight(code, players) {
     nightRound: 1,
     mafiaTargetId: null,
     doctorVotes: {},
+    policeCandidates: [],
+    policeChecks: {},
     lastNightResult: null,
     revealDeadline: null,
   });
 }
 
-async function goToDoctorPhase(code) {
+async function goToDoctorPhase(code, players) {
+  const aliveDoctors = aliveList(players).filter((p) => p.role === "doctor");
+  if (aliveDoctors.length > 0) {
+    await gameRef(code).update({
+      nightSubphase: "doctor_vote",
+      doctorVotes: {},
+      revealDeadline: null,
+    });
+  } else {
+    // 의사가 없으면 곧장 경찰 조사로 넘어간다 (여기 도달했다면 경찰이 살아있다는 뜻).
+    await goToPolicePhase(code, players);
+  }
+}
+
+async function goToPolicePhase(code, players) {
+  const aliveTargets = aliveList(players).map((p) => p.id);
   await gameRef(code).update({
-    nightSubphase: "doctor_vote",
-    doctorVotes: {},
+    nightSubphase: "police_vote",
+    policeCandidates: aliveTargets,
+    policeChecks: {},
     revealDeadline: null,
   });
 }
@@ -992,10 +1078,11 @@ async function closeMafiaVote(code, game, players) {
 
   const targetId = winners[0];
   const aliveDoctors = aliveList(players).filter((p) => p.role === "doctor");
-  if (aliveDoctors.length === 0) {
+  const alivePolice = aliveList(players).filter((p) => p.role === "police");
+  if (aliveDoctors.length === 0 && alivePolice.length === 0) {
     await resolveNight(code, { mafiaTargetId: targetId });
   } else {
-    // 의사 선택으로 넘어가기 전 잠깐 카운트다운을 보여준다.
+    // 의사(또는 경찰) 선택으로 넘어가기 전 잠깐 카운트다운을 보여준다.
     await gameRef(code).update({
       mafiaTargetId: targetId,
       nightSubphase: "mafia_done",
@@ -1005,6 +1092,19 @@ async function closeMafiaVote(code, game, players) {
 }
 
 async function closeDoctorVote(code, game, players) {
+  const alivePolice = aliveList(players).filter((p) => p.role === "police");
+  if (alivePolice.length === 0) {
+    await resolveNight(code, { mafiaTargetId: game.mafiaTargetId, doctorVotes: game.doctorVotes });
+  } else {
+    // 경찰 조사로 넘어가기 전 잠깐 카운트다운을 보여준다.
+    await gameRef(code).update({
+      nightSubphase: "doctor_done",
+      revealDeadline: Date.now() + REVEAL_COUNTDOWN_MS,
+    });
+  }
+}
+
+async function closePolicePhase(code, game, players) {
   await resolveNight(code, { mafiaTargetId: game.mafiaTargetId, doctorVotes: game.doctorVotes });
 }
 
@@ -1049,7 +1149,7 @@ async function resolveNight(code, { mafiaTargetId, doctorVotes }) {
 
 function checkWinner(players) {
   const aliveMafia = players.filter((p) => p.alive && p.role === "mafia").length;
-  const aliveOthers = players.filter((p) => p.alive && (p.role === "citizen" || p.role === "doctor")).length;
+  const aliveOthers = players.filter((p) => p.alive && p.role !== "mafia").length;
   if (aliveMafia === 0) return "citizen";
   if (aliveOthers <= aliveMafia) return "mafia";
   return null;
@@ -1209,6 +1309,7 @@ function renderPlayer(code, playerId, game, players, me) {
 function roleDescription(role) {
   if (role === "mafia") return "밤마다 동료와 함께 시민 한 명을 지목해 제거하세요.";
   if (role === "doctor") return "밤마다 한 사람을 선택해 마피아의 공격으로부터 지켜주세요.";
+  if (role === "police") return "밤마다 한 사람을 조사해서 정체를 알아내세요.";
   return "낮 동안 대화를 통해 마피아를 찾아내 투표로 지목하세요.";
 }
 
@@ -1293,9 +1394,10 @@ function renderPlayerAction(code, playerId, game, players, me) {
       return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>`;
     }
     if (game.nightSubphase === "mafia_done") {
+      const nextIsDoctor = aliveList(players).some((p) => p.role === "doctor");
       return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>${renderCountdownText(
         game.revealDeadline,
-        "💉 의사에게 넘어갑니다"
+        nextIsDoctor ? "💉 의사에게 넘어갑니다" : "🔍 경찰에게 넘어갑니다"
       )}`;
     }
     if (game.nightSubphase === "doctor_vote") {
@@ -1316,6 +1418,40 @@ function renderPlayerAction(code, playerId, game, players, me) {
         `;
       }
       return `<div class="waiting-box"><span class="icon">💉</span><p>의사가 살릴 사람을 고르고 있습니다...</p></div>`;
+    }
+    if (game.nightSubphase === "doctor_done") {
+      return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>${renderCountdownText(
+        game.revealDeadline,
+        "🔍 경찰에게 넘어갑니다"
+      )}`;
+    }
+    if (game.nightSubphase === "police_vote") {
+      if (me.role === "police") {
+        const myCheck = game.policeChecks ? game.policeChecks[playerId] : null;
+        if (myCheck) {
+          return `
+            <div class="waiting-box">
+              <span class="icon">🔍</span>
+              <p><strong>${escapeHtml(myCheck.targetName)}</strong>님의 정체는
+                <span class="badge ${myCheck.targetRole}">${roleLabel(myCheck.targetRole)}</span> 입니다.</p>
+              <p class="sub-text">다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>
+            </div>
+          `;
+        }
+        const candidates = game.policeCandidates || [];
+        const votedCount = Object.keys(game.policeChecks || {}).length;
+        const eligibleCount = aliveList(players).filter((p) => p.role === "police").length;
+        return `
+          <p class="center-text sub-text">조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</p>
+          <p class="center-text sub-text">조사 현황: ${votedCount} / ${eligibleCount}명 (경찰)</p>
+          ${renderPlayerGrid(players, {
+            mode: "night-police-vote",
+            myId: playerId,
+            candidates,
+          })}
+        `;
+      }
+      return `<div class="waiting-box"><span class="icon">🔍</span><p>경찰이 조사하고 있습니다...</p></div>`;
     }
     if (game.nightSubphase === "reveal") {
       return renderNightRevealBox(game, players);
@@ -1377,6 +1513,11 @@ function wirePlayerAction(code, playerId, game, players, me) {
       ? "night-mafia"
       : game.phase === "night" && game.nightSubphase === "doctor_vote" && me.role === "doctor"
       ? "night-doctor"
+      : game.phase === "night" &&
+        game.nightSubphase === "police_vote" &&
+        me.role === "police" &&
+        !(game.policeChecks && game.policeChecks[playerId])
+      ? "night-police"
       : null;
 
   if (!mode) return;
@@ -1396,6 +1537,13 @@ function wirePlayerAction(code, playerId, game, players, me) {
         const target = players.find((p) => p.id === targetId);
         if (!target || !target.alive) return;
         await gameRef(code).update({ [`doctorVotes.${playerId}`]: targetId });
+      } else if (mode === "night-police") {
+        if (!(game.policeCandidates || []).includes(targetId)) return;
+        const target = players.find((p) => p.id === targetId);
+        if (!target) return;
+        await gameRef(code).update({
+          [`policeChecks.${playerId}`]: { targetId, targetName: target.name, targetRole: target.role },
+        });
       }
     });
   });

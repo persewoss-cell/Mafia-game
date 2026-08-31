@@ -8,6 +8,7 @@
   --mafia: #d64545;
   --citizen: #3d7fff;
   --doctor: #29a37a;
+  --police: #a5720f;
   --card-bg: #ffffff;
   --card-bg-dead: #e9e9ee;
   --text-main: #2b2540;
@@ -234,6 +235,7 @@ input[type="text"]:focus, input[type="number"]:focus {
 .badge.mafia { background: var(--mafia); }
 .badge.citizen { background: var(--citizen); }
 .badge.doctor { background: var(--doctor); }
+.badge.police { background: var(--police); }
 .badge.admin { background: #7a54d4; }
 
 .counts-row {
@@ -360,12 +362,14 @@ body.theme-night .phase-banner {
 .role-box.role-mafia { background: #fdeaea; color: var(--mafia); }
 .role-box.role-citizen { background: #e9f1ff; color: var(--citizen); }
 .role-box.role-doctor { background: #e6f8f1; color: var(--doctor); }
+.role-box.role-police { background: #fbf1e0; color: var(--police); }
 .role-box .role-name { font-size: 1.8rem; display: block; margin: 6px 0; }
 .role-box .role-desc { font-weight: 500; font-size: 0.95rem; opacity: 0.85; }
 
 body.theme-night .role-box.role-mafia { background: #4a2323; color: #ff9d9d; }
 body.theme-night .role-box.role-citizen { background: #223350; color: #a9c6ff; }
 body.theme-night .role-box.role-doctor { background: #1e3d33; color: #8fe3c4; }
+body.theme-night .role-box.role-police { background: #3d3016; color: #f0c877; }
 
 .mafia-team-box {
   background: #fdeaea;
@@ -415,6 +419,7 @@ body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
 .player-card.revealed-mafia { border-color: var(--mafia); }
 .player-card.revealed-citizen { border-color: var(--citizen); }
 .player-card.revealed-doctor { border-color: var(--doctor); }
+.player-card.revealed-police { border-color: var(--police); }
 
 .role-tag {
   display: block;
@@ -425,6 +430,7 @@ body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
 .role-tag.mafia { color: var(--mafia); }
 .role-tag.citizen { color: var(--citizen); }
 .role-tag.doctor { color: var(--doctor); }
+.role-tag.police { color: var(--police); }
 
 .waiting-box {
   text-align: center;
