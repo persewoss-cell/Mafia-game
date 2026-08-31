@@ -3,6 +3,8 @@
   --day-bg-2: #ffe1a8;
   --night-bg-1: #1b1f4b;
   --night-bg-2: #0b0e2b;
+  --dead-bg-1: #ffd6d6;
+  --dead-bg-2: #ffb0b0;
   --accent: #ff8a3d;
   --accent-dark: #e6672a;
   --mafia: #d64545;
@@ -40,10 +42,21 @@ body.theme-night {
   color: #f0eefc;
 }
 
+/* 탈락한 참가자 본인 화면은 낮/밤 테마와 상관없이 옅은 빨간 배경으로 확실히 표시한다. */
+body.player-dead {
+  background: linear-gradient(160deg, var(--dead-bg-1), var(--dead-bg-2)) !important;
+}
+
 body.theme-night .card,
-body.theme-night .panel {
+body.theme-night .panel,
+body.theme-night .player-card {
   background: #262a5c;
   color: #f0eefc;
+}
+
+body.theme-night .player-card.dead {
+  background: #3a3a4a;
+  color: #cfcfe0;
 }
 
 body.theme-night .sub-text { color: #b9b6da; }

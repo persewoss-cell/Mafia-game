@@ -58,6 +58,7 @@ function showScreen(id) {
   if (leaveBtn) leaveBtn.hidden = !(id === "screen-admin" || id === "screen-player");
   const endGameBtn = $("btnEndGameTopRight");
   if (endGameBtn) endGameBtn.hidden = id !== "screen-admin";
+  if (id !== "screen-player") document.body.classList.remove("player-dead");
 }
 
 function setTheme(phase) {
@@ -1255,6 +1256,7 @@ function renderPlayerWaiting(msg) {
 
 function renderPlayer(code, playerId, game, players, me) {
   const el = $("playerContent");
+  document.body.classList.toggle("player-dead", !me.alive);
 
   if (game.status === "lobby") {
     el.innerHTML = `
