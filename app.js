@@ -692,7 +692,7 @@ function renderAdmin(code, game, players) {
 
   if (game.status === "ended") {
     const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
-    el.innerHTML = revealBox + renderWinnerModalInline(game) + `
+    el.innerHTML = renderCodeChip(game.code) + revealBox + renderWinnerModalInline(game) + `
       <div class="card center-text">
         <button class="big-btn" id="btnNewGame">🆕 새 게임 만들기</button>
         <button class="big-btn secondary" id="btnEndOnly">✅ 게임 종료하기</button>
@@ -740,6 +740,7 @@ function renderAdmin(code, game, players) {
       ? renderNightRevealBox(game)
       : "";
   el.innerHTML = `
+    ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
     ${renderCountsRow(game, players)}
     ${liveRevealBox}
@@ -795,6 +796,11 @@ async function startGame(code, players) {
     policeChecks: {},
   });
   await batch.commit();
+}
+
+// 게임이 시작된 뒤에도 화면 상단에서 참가 코드를 계속 확인할 수 있도록 표시한다.
+function renderCodeChip(code) {
+  return `<div class="center-text"><span class="code-chip">🔑 코드 ${code}</span></div>`;
 }
 
 /* ------------------------------------------------------------
@@ -1408,6 +1414,7 @@ function renderPlayer(code, playerId, game, players, me) {
     const isCitizen = game.winner === "citizen";
     const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
     el.innerHTML = `
+      ${renderCodeChip(game.code)}
       ${revealBox}
       <div class="card center-text">
         <span style="font-size:3rem;display:block;">${isCitizen ? "🎉" : "🔪"}</span>
@@ -1449,6 +1456,7 @@ function renderPlayer(code, playerId, game, players, me) {
   const actionArea = renderPlayerAction(code, playerId, game, players, me);
 
   el.innerHTML = `
+    ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
     ${renderCountsRow(game, players)}
     ${myRoleBox}
