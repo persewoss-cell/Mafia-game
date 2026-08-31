@@ -675,6 +675,14 @@ function renderAdmin(code, game, players) {
   if (screenSection) {
     screenSection.classList.toggle("blackout-active", game.status === "playing" && adminScreenHidden);
   }
+  const hideBtn = $("btnHideAdminScreen");
+  if (hideBtn) {
+    hideBtn.hidden = !(game.status === "playing" && !adminScreenHidden);
+    hideBtn.onclick = () => {
+      adminScreenHidden = true;
+      if (adminRerenderFn) adminRerenderFn();
+    };
+  }
 
   if (game.status === "playing" && adminScreenHidden) {
     el.innerHTML = `
@@ -764,7 +772,6 @@ function renderAdmin(code, game, players) {
       ? renderNightRevealBox(game)
       : "";
   el.innerHTML = `
-    <div class="center-text"><button class="big-btn ghost" id="btnHideAdminScreen">🙈 화면 가리기</button></div>
     ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
     ${renderCountsRow(game, players)}
@@ -773,10 +780,6 @@ function renderAdmin(code, game, players) {
     ${renderAdminControlPanel(code, game, players)}
     ${renderAdminRoster(players)}
   `;
-  $("btnHideAdminScreen").addEventListener("click", () => {
-    adminScreenHidden = true;
-    if (adminRerenderFn) adminRerenderFn();
-  });
   wireAdminControlPanel(code, game, players);
 }
 

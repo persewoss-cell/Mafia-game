@@ -85,6 +85,13 @@ body.theme-night .sub-text { color: #b9b6da; }
 .corner-leave-btn { background: rgba(20, 15, 35, 0.65); }
 .corner-end-btn { background: #c23b3b; }
 
+.admin-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .admin-mode-badge {
   display: inline-block;
   background: #7a54d4;
@@ -95,6 +102,15 @@ body.theme-night .sub-text { color: #b9b6da; }
   border-radius: 999px;
   margin-bottom: 14px;
 }
+
+.hide-screen-badge-btn {
+  background: #e08a1e;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.hide-screen-badge-btn:active { transform: scale(0.96); }
+.hide-screen-badge-btn[hidden] { display: none; }
 
 .code-chip {
   display: inline-block;
@@ -110,7 +126,7 @@ body.theme-night .sub-text { color: #b9b6da; }
 body.theme-night .code-chip { background: rgba(255,255,255,0.12); color: #f0eefc; }
 body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
 
-#screen-admin.blackout-active .admin-mode-badge { display: none; }
+#screen-admin.blackout-active .admin-top-row { display: none; }
 .admin-blackout {
   position: fixed;
   inset: 0;
