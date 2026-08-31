@@ -287,6 +287,27 @@ body.theme-night .count-pill { background: rgba(255,255,255,0.08); }
 }
 body.theme-night .player-list li { background: rgba(255,255,255,0.06); }
 
+.howto-role-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.howto-role-list li {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.04);
+  margin-bottom: 10px;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.howto-role-list li .badge {
+  display: inline-block;
+  margin: 0 8px 6px 0;
+  font-size: 0.95rem;
+  padding: 5px 12px;
+}
+body.theme-night .howto-role-list li { background: rgba(255,255,255,0.06); }
+
 .lobby-list {
   list-style: none;
   padding: 0;
