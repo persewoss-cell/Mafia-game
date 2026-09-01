@@ -782,11 +782,13 @@ function renderAdmin(code, game, players) {
   }
 
   // playing
+  // 카운트다운은 아래쪽 "진행 조작" 패널에 버튼과 함께 표시되므로, 여기서는 중복으로
+  // 뜨지 않도록 includeCountdown: false로 렌더링한다.
   const liveRevealBox =
     game.phase === "day" && game.daySubphase === "reveal"
-      ? renderDayRevealBox(game)
+      ? renderDayRevealBox(game, players, false)
       : game.phase === "night" && game.nightSubphase === "reveal"
-      ? renderNightRevealBox(game)
+      ? renderNightRevealBox(game, players, false)
       : "";
   el.innerHTML = `
     ${renderCodeChip(game.code)}
@@ -794,6 +796,7 @@ function renderAdmin(code, game, players) {
     ${renderCountsRow(game, players)}
     ${liveRevealBox}
     ${renderPlayerGrid(players, { mode: "admin-view" })}
+    ${renderNightStatusPanel(game, players)}
     ${renderAdminControlPanel(code, game, players)}
     ${renderAdminRoster(players)}
   `;
@@ -1059,12 +1062,22 @@ function renderTallyList(counts, players) {
   </ul>`;
 }
 
-// 관리자 패널에 아직 투표/선택하지 않은 사람 명단을 " / 미투표자: A, B" 형태로 덧붙인다.
+// 관리자 패널에 아직 투표/선택하지 않은 사람 명단을 ", 미투표자: A, B" 형태로 덧붙인다.
 function renderNonVoterList(eligiblePlayers, responseMap, label) {
   const respondedIds = new Set(Object.keys(responseMap || {}));
   const remaining = eligiblePlayers.filter((p) => !respondedIds.has(p.id));
   if (remaining.length === 0) return "";
-  return ` / ${label}: ${remaining.map((p) => escapeHtml(p.name)).join(", ")}`;
+  return `, ${label}: ${remaining.map((p) => escapeHtml(p.name)).join(", ")}`;
+}
+
+// 모든 투표/선택 현황을 "이름표: X/Y명, 미참여자: A, B" 형태로 통일해서 보여준다.
+function renderVoteStatusLine(label, eligiblePlayers, responseMap, nonVoterLabel) {
+  const votedCount = Object.keys(responseMap || {}).length;
+  return `<p class="sub-text">${label}: ${votedCount}/${eligiblePlayers.length}명${renderNonVoterList(
+    eligiblePlayers,
+    responseMap,
+    nonVoterLabel
+  )}</p>`;
 }
 
 // 밤에 실제 역할을 수행하지 않는 사람들의 "가짜 투표" 참여 현황을 관리자에게 보여준다.
@@ -1072,12 +1085,45 @@ function renderNonVoterList(eligiblePlayers, responseMap, label) {
 function renderDecoyStatusLine(alivePlayers, excludeRole, decoyVotes) {
   const eligible = alivePlayers.filter((p) => p.role !== excludeRole);
   if (eligible.length === 0) return "";
-  const votedCount = Object.keys(decoyVotes || {}).length;
-  return `<p class="sub-text">가짜 투표(다른 참가자) 참여 현황: ${votedCount} / ${eligible.length}명 완료${renderNonVoterList(
-    eligible,
-    decoyVotes,
-    "미참여자"
-  )}</p>`;
+  return renderVoteStatusLine("가짜 투표(다른 참가자) 참여 현황", eligible, decoyVotes, "미참여자");
+}
+
+// 이름 → 표(투표/선택) 수를 집계해 "OOO(2표), XXX" 형태의 요약 문구로 보여준다.
+// 밤 동안 마피아/의사/경찰이 각자 누구를 선택했는지 관리자가 계속 확인할 수 있게 해준다.
+function renderChosenSummary(voteMap, players) {
+  const counts = {};
+  Object.values(voteMap || {}).forEach((targetId) => {
+    if (!targetId) return;
+    counts[targetId] = (counts[targetId] || 0) + 1;
+  });
+  const entries = Object.entries(counts);
+  if (entries.length === 0) return "아직 선택 없음";
+  return entries
+    .map(([id, n]) => {
+      const name = escapeHtml(players.find((p) => p.id === id)?.name || "?");
+      return n > 1 ? `${name}(${n}표)` : name;
+    })
+    .join(", ");
+}
+
+// 밤 동안 계속 떠 있는 진행 상황 패널. 마피아/의사/경찰이 각자 누구를 선택했는지
+// 실시간으로 보여주고, 낮이 되면(game.phase !== "night") 사라진다.
+function renderNightStatusPanel(game, players) {
+  if (game.phase !== "night") return "";
+
+  const policeVoteMap = {};
+  Object.entries(game.policeChecks || {}).forEach(([voterId, check]) => {
+    policeVoteMap[voterId] = check.targetId;
+  });
+
+  return `
+    <div class="panel night-status-panel">
+      <h3 style="margin-top:0;color:#7a54d4;">🌙 밤 진행 상황 (실시간)</h3>
+      <p class="sub-text">🔪 마피아가 선택한 사람: <strong>${renderChosenSummary(game.nightVotes, players)}</strong></p>
+      <p class="sub-text">💉 의사가 선택한 사람: <strong>${renderChosenSummary(game.doctorVotes, players)}</strong></p>
+      <p class="sub-text">🔍 경찰이 조사한 사람: <strong>${renderChosenSummary(policeVoteMap, players)}</strong></p>
+    </div>
+  `;
 }
 
 function renderAdminControlPanel(code, game, players) {
@@ -1086,11 +1132,9 @@ function renderAdminControlPanel(code, game, players) {
   if (game.phase === "day") {
     if (game.daySubphase === "vote" || game.daySubphase === "revote") {
       const counts = tally(game.votes, game.voteCandidates);
-      const votedCount = Object.keys(game.votes || {}).length;
-      const eligibleVoters = alivePlayers.length;
       return `<div class="admin-panel">
         <h3>진행 조작 ${game.voteRound > 1 ? `(재투표 ${game.voteRound}회차)` : ""}</h3>
-        <p class="sub-text">투표 현황: ${votedCount} / ${eligibleVoters}명 투표 완료${renderNonVoterList(alivePlayers, game.votes, "미투표자")}</p>
+        ${renderVoteStatusLine("투표 현황", alivePlayers, game.votes, "미투표자")}
         ${renderTallyList(counts, players)}
         <button class="big-btn" id="btnCloseVote">✅ 투표 마감하고 결과 확인</button>
       </div>`;
@@ -1111,10 +1155,9 @@ function renderAdminControlPanel(code, game, players) {
 
     if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
       const counts = tally(game.nightVotes, game.nightCandidates);
-      const votedCount = Object.keys(game.nightVotes || {}).length;
       return `<div class="admin-panel">
         <h3>진행 조작 ${game.nightRound > 1 ? `(재투표 ${game.nightRound}회차)` : ""}</h3>
-        <p class="sub-text">마피아 투표 현황: ${votedCount} / ${aliveMafia.length}명 투표 완료${renderNonVoterList(aliveMafia, game.nightVotes, "미투표자")}</p>
+        ${renderVoteStatusLine("마피아 투표 현황", aliveMafia, game.nightVotes, "미투표자")}
         ${renderTallyList(counts, players)}
         ${renderDecoyStatusLine(alivePlayers, "mafia", game.decoyVotes)}
         <button class="big-btn" id="btnCloseMafiaVote">✅ 마피아 투표 마감</button>
@@ -1131,10 +1174,9 @@ function renderAdminControlPanel(code, game, players) {
     }
     if (game.nightSubphase === "doctor_vote") {
       const doctorCounts = tally(game.doctorVotes, alivePlayers.map((p) => p.id));
-      const votedCount = Object.keys(game.doctorVotes || {}).length;
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
-        <p class="sub-text">의사 선택 현황: ${votedCount} / ${aliveDoctors.length}명 완료${renderNonVoterList(aliveDoctors, game.doctorVotes, "미선택자")}</p>
+        ${renderVoteStatusLine("의사 선택 현황", aliveDoctors, game.doctorVotes, "미선택자")}
         ${renderTallyList(doctorCounts, players)}
         ${renderDecoyStatusLine(alivePlayers, "doctor", game.decoyVotes)}
         <button class="big-btn" id="btnCloseDoctorVote">✅ 의사 선택 마감하고 결과 확인</button>
@@ -1150,7 +1192,7 @@ function renderAdminControlPanel(code, game, players) {
       const allDone = alivePolice.length > 0 && votedCount >= alivePolice.length;
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
-        <p class="sub-text">경찰 조사 현황: ${votedCount} / ${alivePolice.length}명 완료${renderNonVoterList(alivePolice, game.policeChecks, "미선택자")}</p>
+        ${renderVoteStatusLine("경찰 조사 현황", alivePolice, game.policeChecks, "미선택자")}
         ${renderTallyList(policeCounts, players)}
         ${renderDecoyStatusLine(alivePlayers, "police", game.decoyVotes)}
         ${allDone ? renderCountdownText(game.revealDeadline, "☀️ 결과 확인으로 넘어갑니다") : ""}
@@ -1788,7 +1830,10 @@ function renderCountdownText(deadline, label) {
   return `<div class="countdown-banner">⏳ <strong>${remaining}초</strong> 뒤에 ${label}</div>`;
 }
 
-function renderDayRevealBox(game, players) {
+// includeCountdown이 false면 카운트다운 문구를 붙이지 않는다. 관리자 화면에서는
+// "진행 조작" 패널에 같은 카운트다운이 버튼과 함께 이미 표시되므로, 위쪽 결과 박스에서는
+// 중복으로 뜨지 않도록 뺀다 (참가자 화면에는 진행 조작 패널이 없으므로 항상 표시한다).
+function renderDayRevealBox(game, players, includeCountdown = true) {
   const r = game.lastDayResult;
   let inner;
   if (!r || r.noVotes) {
@@ -1800,10 +1845,10 @@ function renderDayRevealBox(game, players) {
       <p class="sub-text">정체는 <span class="badge ${r.eliminatedRole}">${roleLabel(r.eliminatedRole)}</span> 였습니다.</p>
     `;
   }
-  return `<div class="waiting-box">${inner}</div>${renderCountdownText(game.revealDeadline, "🌙 밤이 됩니다")}`;
+  return `<div class="waiting-box">${inner}</div>${includeCountdown ? renderCountdownText(game.revealDeadline, "🌙 밤이 됩니다") : ""}`;
 }
 
-function renderNightRevealBox(game, players) {
+function renderNightRevealBox(game, players, includeCountdown = true) {
   const r = game.lastNightResult;
   let inner;
   if (!r || r.nobody) {
@@ -1823,7 +1868,7 @@ function renderNightRevealBox(game, players) {
       <p class="sub-text">정체는 <span class="badge ${r.targetRole}">${roleLabel(r.targetRole)}</span> 였습니다.</p>
     `;
   }
-  return `<div class="waiting-box">${inner}</div>${renderCountdownText(game.revealDeadline, "☀️ 낮이 됩니다")}`;
+  return `<div class="waiting-box">${inner}</div>${includeCountdown ? renderCountdownText(game.revealDeadline, "☀️ 낮이 됩니다") : ""}`;
 }
 
 function wirePlayerAction(code, playerId, game, players, me) {

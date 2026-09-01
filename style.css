@@ -246,6 +246,10 @@ body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
   margin-bottom: 16px;
 }
 
+.night-status-panel {
+  border: 2px solid #7a54d4;
+}
+
 label {
   display: block;
   font-weight: 700;
