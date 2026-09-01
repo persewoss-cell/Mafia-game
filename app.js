@@ -877,6 +877,8 @@ function renderAdmin(code, game, players) {
       : game.phase === "night" && game.nightSubphase === "reveal"
       ? renderNightRevealBox(game, players, false)
       : "";
+  // 이름+역할은 위쪽 참가자 박스(renderPlayerGrid의 admin-view 모드)에 이미 뜨므로,
+  // 여기서는 목록 형태로 중복해서 보여주지 않는다.
   el.innerHTML = `
     ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
@@ -885,7 +887,6 @@ function renderAdmin(code, game, players) {
     ${renderPlayerGrid(players, { mode: "admin-view" })}
     ${renderNightStatusPanel(game, players)}
     ${renderAdminControlPanel(code, game, players)}
-    ${renderAdminRoster(players)}
   `;
   wireAdminControlPanel(code, game, players);
 }
