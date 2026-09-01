@@ -390,6 +390,13 @@ body.theme-night .howto-role-list li { background: rgba(255,255,255,0.06); }
 }
 .admin-history-item:active { transform: scale(0.96); border-color: var(--accent); }
 .admin-history-item .history-status { font-size: 0.75rem; }
+
+.open-room-item {
+  cursor: pointer;
+  border: 2px solid transparent;
+  line-height: 1.5;
+}
+.open-room-item:active { transform: scale(0.96); border-color: var(--accent); }
 .delete-room-btn {
   position: absolute;
   top: 2px;

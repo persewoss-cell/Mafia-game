@@ -146,6 +146,11 @@
       <h1>게임 참가하기</h1>
       <p>관리자에게 받은 4자리 코드를 입력하세요</p>
     </div>
+    <div class="card" id="openRoomsCard" hidden>
+      <h3 style="margin-top:0;">🚪 열려있는 대기실</h3>
+      <ul class="lobby-list" id="openRoomsList"></ul>
+      <p class="sub-text">방을 누르면 코드가 자동으로 입력돼요.</p>
+    </div>
     <form class="card" id="formJoinGame" novalidate>
       <label for="inputCode">참가 코드</label>
       <input type="text" id="inputCode" inputmode="numeric" maxlength="4" placeholder="0000" />

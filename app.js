@@ -189,7 +189,47 @@ function enterJoinScreen() {
   // 이전에 참가에 성공한 뒤에는 제출 버튼이 계속 비활성 상태로 남아있으므로,
   // 이 화면에 들어올 때마다 다시 눌러지도록 초기화한다.
   $("btnJoinGame").disabled = false;
+  renderOpenRoomsList();
   showScreen("screen-join");
+}
+
+// 아직 게임이 시작되지 않은(대기실 상태) 방 목록을 코드 입력란 위에 보여준다.
+// 누르면 코드가 입력란에 자동으로 채워진다.
+async function renderOpenRoomsList() {
+  const card = $("openRoomsCard");
+  const list = $("openRoomsList");
+  if (!card || !list) return;
+
+  card.hidden = true;
+  list.innerHTML = "";
+
+  try {
+    const snap = await db.collection("games").where("status", "==", "lobby").get();
+    const rooms = snap.docs
+      .map((d) => d.data())
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+      .slice(0, 10);
+
+    if (rooms.length === 0) return;
+
+    card.hidden = false;
+    list.innerHTML = rooms
+      .map(
+        (g) =>
+          `<li class="open-room-item" data-code="${g.code}">🔑 ${g.code}<br><span class="sub-text">최대 ${g.maxPlayers}명</span></li>`
+      )
+      .join("");
+
+    list.querySelectorAll(".open-room-item").forEach((item) => {
+      item.addEventListener("click", () => {
+        $("inputCode").value = item.dataset.code;
+        $("inputName").focus();
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    card.hidden = true;
+  }
 }
 $("btnGoHowTo").addEventListener("click", () => showScreen("screen-howto"));
 $("btnBackHome1").addEventListener("click", () => showScreen("screen-home"));
@@ -743,26 +783,15 @@ function renderAdmin(code, game, players) {
     const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
     el.innerHTML = renderCodeChip(game.code) + revealBox + renderWinnerModalInline(game) + `
       <div class="card center-text">
-        <button class="big-btn" id="btnNewGame">🆕 새 게임 만들기</button>
-        <button class="big-btn secondary" id="btnEndOnly">✅ 게임 종료하기</button>
-        <button class="big-btn ghost" id="btnEndAndDelete">🗑️ 게임 종료 및 삭제하기</button>
+        <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
+        <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
       </div>
       ${renderAdminRoster(players)}
     `;
-    $("btnNewGame").addEventListener("click", () => {
-      clearSession();
-      enterCreateScreen();
-    });
-    $("btnEndOnly").addEventListener("click", () => {
-      // 방은 "최근에 만든 게임방" 목록에 그대로 남겨두고 나간다.
-      if (adminUnsubGame) adminUnsubGame();
-      if (adminUnsubPlayers) adminUnsubPlayers();
-      if (adminTickInterval) clearInterval(adminTickInterval);
-      clearSession();
-      showScreen("screen-home");
-    });
-    $("btnEndAndDelete").addEventListener("click", async () => {
-      if (!confirm("이 게임방을 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
+
+    // 게임이 완전히 끝났으므로 홈으로 가든 새 게임을 만들든 이 방은 완전히 삭제한다.
+    async function endAndDeleteRoom() {
+      if (!confirm("이 게임방을 완전히 삭제합니다. 계속할까요? (되돌릴 수 없습니다)")) return false;
       // 삭제 후에도 리스너가 남아있으면 "게임을 찾을 수 없습니다" 알림이 중복으로 뜨므로 먼저 정리한다.
       if (adminUnsubGame) adminUnsubGame();
       if (adminUnsubPlayers) adminUnsubPlayers();
@@ -772,11 +801,18 @@ function renderAdmin(code, game, players) {
       } catch (err) {
         console.error(err);
         alert("방 삭제 중 오류가 발생했습니다: " + err.message);
-        return;
+        return false;
       }
       removeAdminHistory(code);
       clearSession();
-      showScreen("screen-home");
+      return true;
+    }
+
+    $("btnEndToHome").addEventListener("click", async () => {
+      if (await endAndDeleteRoom()) showScreen("screen-home");
+    });
+    $("btnEndToNewGame").addEventListener("click", async () => {
+      if (await endAndDeleteRoom()) enterCreateScreen();
     });
     return;
   }
