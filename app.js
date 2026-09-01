@@ -178,6 +178,7 @@ function enterCreateScreen() {
   // 이 화면에 들어올 때마다 다시 눌러지도록 초기화한다.
   $("btnCreateGame").disabled = false;
   renderAdminHistoryList();
+  renderAdminOpenRoomsList();
   showScreen("screen-create");
 }
 $("btnGoJoin").addEventListener("click", () => enterJoinScreen());
@@ -193,23 +194,27 @@ function enterJoinScreen() {
   showScreen("screen-join");
 }
 
-// 아직 게임이 시작되지 않은(대기실 상태) 방 목록을 코드 입력란 위에 보여준다.
-// 누르면 코드가 입력란에 자동으로 채워진다.
-async function renderOpenRoomsList() {
-  const card = $("openRoomsCard");
-  const list = $("openRoomsList");
+// 아직 게임이 시작되지 않은(대기실 상태) 방 목록을 Firestore에서 최신순으로 가져온다.
+// 참가 화면과 관리자 화면이 동일한 전체 목록을 공유해서 보여줄 수 있도록 공통으로 뺐다.
+async function fetchOpenLobbyRooms(limit = 10) {
+  const snap = await db.collection("games").where("status", "==", "lobby").get();
+  return snap.docs
+    .map((d) => d.data())
+    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+    .slice(0, limit);
+}
+
+// cardId/listId에 열려있는 대기실 목록을 렌더링한다. 방을 누르면 onPick(code)가 호출된다.
+async function renderOpenRoomsInto(cardId, listId, onPick) {
+  const card = $(cardId);
+  const list = $(listId);
   if (!card || !list) return;
 
   card.hidden = true;
   list.innerHTML = "";
 
   try {
-    const snap = await db.collection("games").where("status", "==", "lobby").get();
-    const rooms = snap.docs
-      .map((d) => d.data())
-      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
-      .slice(0, 10);
-
+    const rooms = await fetchOpenLobbyRooms();
     if (rooms.length === 0) return;
 
     card.hidden = false;
@@ -221,15 +226,31 @@ async function renderOpenRoomsList() {
       .join("");
 
     list.querySelectorAll(".open-room-item").forEach((item) => {
-      item.addEventListener("click", () => {
-        $("inputCode").value = item.dataset.code;
-        $("inputName").focus();
-      });
+      item.addEventListener("click", () => onPick(item.dataset.code));
     });
   } catch (err) {
     console.error(err);
     card.hidden = true;
   }
+}
+
+// 참가 화면: 방을 누르면 코드 입력란에 자동으로 채워진다.
+function renderOpenRoomsList() {
+  return renderOpenRoomsInto("openRoomsCard", "openRoomsList", (code) => {
+    $("inputCode").value = code;
+    $("inputName").focus();
+  });
+}
+
+// 관리자 화면: "최근에 만든 게임방"(이 브라우저 기록)과 달리, 다른 기기에서 만든
+// 방을 포함해 현재 열려있는 대기실 전체를 보여준다. 누르면 관리자 비밀번호를
+// 입력해 재접속을 시도한다.
+function renderAdminOpenRoomsList() {
+  return renderOpenRoomsInto("adminOpenRoomsCard", "adminOpenRoomsList", (code) => {
+    const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
+    if (pin === null) return;
+    attemptAdminReconnect(code, pin.trim(), null);
+  });
 }
 $("btnGoHowTo").addEventListener("click", () => showScreen("screen-howto"));
 $("btnBackHome1").addEventListener("click", () => showScreen("screen-home"));
