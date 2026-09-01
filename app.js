@@ -174,6 +174,9 @@ function enterCreateScreen() {
   $("reconnectError").textContent = "";
   $("inputReconnectCode").value = "";
   $("inputReconnectPin").value = "";
+  // 이전에 게임을 한 번 만든 뒤에는 제출 버튼이 계속 비활성 상태로 남아있으므로,
+  // 이 화면에 들어올 때마다 다시 눌러지도록 초기화한다.
+  $("btnCreateGame").disabled = false;
   renderAdminHistoryList();
   showScreen("screen-create");
 }
@@ -183,6 +186,9 @@ function enterJoinScreen() {
   $("joinError").textContent = "";
   $("inputCode").value = "";
   $("inputName").value = "";
+  // 이전에 참가에 성공한 뒤에는 제출 버튼이 계속 비활성 상태로 남아있으므로,
+  // 이 화면에 들어올 때마다 다시 눌러지도록 초기화한다.
+  $("btnJoinGame").disabled = false;
   showScreen("screen-join");
 }
 $("btnGoHowTo").addEventListener("click", () => showScreen("screen-howto"));
@@ -846,13 +852,37 @@ function renderCodeChip(code) {
   return `<div class="center-text"><span class="code-chip">🔑 코드 ${code}</span></div>`;
 }
 
+// 가짜 경찰 조사 결과에 쓸 문구. 실제 결과처럼 보이도록 전부 긍정적인 표현만 사용한다.
+const DECOY_POLICE_RESULTS = [
+  "정말 착한 사람입니다.",
+  "친구를 잘 도와주는 사람입니다.",
+  "믿음직스러운 사람입니다.",
+  "웃음이 많은 사람입니다.",
+  "성실하고 부지런한 사람입니다.",
+  "다정하고 친절한 사람입니다.",
+  "용감하고 씩씩한 사람입니다.",
+  "똑똑하고 지혜로운 사람입니다.",
+  "인기가 많은 사람입니다.",
+  "긍정 에너지가 넘치는 사람입니다.",
+  "배려심이 많은 사람입니다.",
+  "리더십이 뛰어난 사람입니다.",
+];
+function randomDecoyPoliceResult() {
+  return DECOY_POLICE_RESULTS[Math.floor(Math.random() * DECOY_POLICE_RESULTS.length)];
+}
+
 // 밤에 실제로 행동하는 역할(마피아/의사/경찰)이 아닌 사람에게도 똑같이 생긴 선택 화면을
 // 보여준다. 선택 결과 자체는 게임 진행에 영향을 주지 않지만, 옆에서 봤을 때 누가 진짜로
 // 밤 행동을 하는지 구분할 수 없도록 반드시 한 번은 선택해야 다음 단계로 넘어간다.
-function renderDecoyVote(players, myId, candidates, promptText, selectedId) {
+// locked가 true면(의사/경찰 차례) 한 번 선택한 뒤에는 바꿀 수 없다는 안내를 보여준다.
+function renderDecoyVote(players, myId, candidates, promptText, selectedId, locked) {
   return `
     <p class="center-text sub-text">${promptText}</p>
-    <p class="center-text sub-text">(선택해도 게임 결과에는 전혀 반영되지 않아요. 그래도 다음으로 넘어가려면 반드시 한 명을 선택해야 해요!)</p>
+    <p class="center-text sub-text">${
+      locked
+        ? "(선택해도 게임 결과에는 전혀 반영되지 않아요. 한 번 선택하면 바꿀 수 없으니 신중하게 골라주세요!)"
+        : "(선택해도 게임 결과에는 전혀 반영되지 않아요. 그래도 다음으로 넘어가려면 반드시 한 명을 선택해야 해요!)"
+    }</p>
     ${renderPlayerGrid(players, {
       mode: "decoy-vote",
       myId,
@@ -1640,12 +1670,14 @@ function renderPlayerAction(code, playerId, game, players, me) {
           })}
         `;
       }
+      const myMafiaDecoy = game.decoyVotes ? game.decoyVotes[playerId] : null;
       return renderDecoyVote(
         players,
         playerId,
-        game.nightCandidates || [],
+        players.filter((p) => p.alive).map((p) => p.id),
         "만약 당신이 마피아라면, 누구를 선택해서 죽이겠습니까?",
-        game.decoyVotes ? game.decoyVotes[playerId] : null
+        myMafiaDecoy ? myMafiaDecoy.targetId : null,
+        false
       );
     }
     if (game.nightSubphase === "mafia_done") {
@@ -1672,12 +1704,17 @@ function renderPlayerAction(code, playerId, game, players, me) {
           })}
         `;
       }
+      const myDoctorDecoy = game.decoyVotes ? game.decoyVotes[playerId] : null;
+      if (myDoctorDecoy) {
+        return `<div class="waiting-box"><span class="icon">💉</span><p>선택을 완료했습니다. 다른 친구들을 기다려주세요...</p></div>`;
+      }
       return renderDecoyVote(
         players,
         playerId,
         players.filter((p) => p.alive).map((p) => p.id),
         "만약 당신이 의사라면, 누구를 선택해서 살리겠습니까?",
-        game.decoyVotes ? game.decoyVotes[playerId] : null
+        null,
+        true
       );
     }
     if (game.nightSubphase === "police_vote") {
@@ -1712,13 +1749,26 @@ function renderPlayerAction(code, playerId, game, players, me) {
           })}
         `;
       }
+      const myPoliceDecoy = game.decoyVotes ? game.decoyVotes[playerId] : null;
+      if (myPoliceDecoy) {
+        const decoyTargetName = players.find((p) => p.id === myPoliceDecoy.targetId)?.name || "?";
+        return `
+          <div class="waiting-box">
+            <span class="icon">🔍</span>
+            <p><strong>${escapeHtml(decoyTargetName)}</strong>님은 <strong>${escapeHtml(myPoliceDecoy.resultText)}</strong></p>
+            <p class="sub-text">다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>
+          </div>
+          ${renderCountdownText(game.revealDeadline, "다음으로 넘어갑니다")}
+        `;
+      }
       return `
         ${renderDecoyVote(
           players,
           playerId,
-          game.policeCandidates || [],
+          players.filter((p) => p.alive).map((p) => p.id),
           "만약 당신이 경찰이라면, 누구를 선택해서 조사하겠습니까?",
-          game.decoyVotes ? game.decoyVotes[playerId] : null
+          null,
+          true
         )}
         ${renderCountdownText(game.revealDeadline, "다음으로 넘어갑니다")}
       `;
@@ -1796,25 +1846,17 @@ function wirePlayerAction(code, playerId, game, players, me) {
       ? "night-police"
       : game.phase === "night" &&
         (((game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") && me.role !== "mafia") ||
-          (game.nightSubphase === "doctor_vote" && me.role !== "doctor") ||
-          (game.nightSubphase === "police_vote" && me.role !== "police"))
+          (game.nightSubphase === "doctor_vote" && me.role !== "doctor" && !(game.decoyVotes && game.decoyVotes[playerId])) ||
+          (game.nightSubphase === "police_vote" && me.role !== "police" && !(game.decoyVotes && game.decoyVotes[playerId])))
       ? "decoy"
       : null;
 
   if (!mode) return;
 
-  // 가짜 투표 화면의 후보 목록은 실제 투표 화면과 동일하게 맞춰서, 진짜 후보가 아닌
-  // 카드를 눌러도 무시되도록 한다 (실제 역할 수행자의 후보 목록과 겉모습을 똑같이 유지).
-  let decoyCandidates = [];
-  if (mode === "decoy") {
-    if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
-      decoyCandidates = game.nightCandidates || [];
-    } else if (game.nightSubphase === "doctor_vote") {
-      decoyCandidates = players.filter((p) => p.alive).map((p) => p.id);
-    } else if (game.nightSubphase === "police_vote") {
-      decoyCandidates = game.policeCandidates || [];
-    }
-  }
+  // 가짜 투표의 후보 목록은 실제 역할이 무엇이든 "죽은 사람만 빼고" 항상 동일하다.
+  // (실제 투표 후보 목록을 그대로 쓰면, 진짜 후보에서 빠진 사람=진짜 역할 수행 대상이라는
+  // 것이 드러나서 마피아 등의 정체가 노출될 수 있다.)
+  const decoyCandidates = mode === "decoy" ? players.filter((p) => p.alive).map((p) => p.id) : [];
 
   grid.querySelectorAll(".player-card").forEach((card) => {
     card.addEventListener("click", async () => {
@@ -1823,9 +1865,18 @@ function wirePlayerAction(code, playerId, game, players, me) {
 
       if (mode === "decoy") {
         if (!decoyCandidates.includes(targetId)) return;
+        // 의사/경찰 차례의 가짜 투표는 실제 의사·경찰처럼 한 번 선택하면 바꿀 수 없다.
+        const isLockedPhase = game.nightSubphase === "doctor_vote" || game.nightSubphase === "police_vote";
+        if (isLockedPhase && game.decoyVotes && game.decoyVotes[playerId]) return;
+
+        const decoyEntry = { targetId };
+        if (game.nightSubphase === "police_vote") {
+          // 경찰 차례의 가짜 투표는 실제 조사 결과처럼 보이도록 긍정적인 문구를 랜덤으로 붙인다.
+          decoyEntry.resultText = randomDecoyPoliceResult();
+        }
         // 가짜 투표도 실제 투표처럼 Firestore에 기록되어야, 전원이 선택을 마쳐야
         // 다음 단계로 넘어가는 "모두 참여" 규칙을 관리자 화면에서 확인할 수 있다.
-        await gameRef(code).update({ [`decoyVotes.${playerId}`]: targetId });
+        await gameRef(code).update({ [`decoyVotes.${playerId}`]: decoyEntry });
         return;
       }
 
