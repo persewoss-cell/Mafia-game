@@ -392,6 +392,7 @@ body.theme-night .howto-role-list li { background: rgba(255,255,255,0.06); }
 .admin-history-item .history-status { font-size: 0.75rem; }
 
 .open-room-item {
+  position: relative;
   cursor: pointer;
   border: 2px solid transparent;
   line-height: 1.5;

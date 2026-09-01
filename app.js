@@ -205,7 +205,8 @@ async function fetchOpenLobbyRooms(limit = 10) {
 }
 
 // cardId/listId에 열려있는 대기실 목록을 렌더링한다. 방을 누르면 onPick(code)가 호출된다.
-async function renderOpenRoomsInto(cardId, listId, onPick) {
+// onDelete가 있으면(관리자 화면) 방마다 삭제(🗑️) 버튼도 함께 보여준다.
+async function renderOpenRoomsInto(cardId, listId, onPick, onDelete) {
   const card = $(cardId);
   const list = $(listId);
   if (!card || !list) return;
@@ -221,13 +222,25 @@ async function renderOpenRoomsInto(cardId, listId, onPick) {
     list.innerHTML = rooms
       .map(
         (g) =>
-          `<li class="open-room-item" data-code="${g.code}">🔑 ${g.code}<br><span class="sub-text">최대 ${g.maxPlayers}명</span></li>`
+          `<li class="open-room-item" data-code="${g.code}">
+            ${onDelete ? `<button type="button" class="delete-room-btn" data-code="${g.code}" title="방 삭제">🗑️</button>` : ""}
+            🔑 ${g.code}<br><span class="sub-text">최대 ${g.maxPlayers}명</span>
+          </li>`
       )
       .join("");
 
     list.querySelectorAll(".open-room-item").forEach((item) => {
       item.addEventListener("click", () => onPick(item.dataset.code));
     });
+
+    if (onDelete) {
+      list.querySelectorAll(".delete-room-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          onDelete(btn.dataset.code);
+        });
+      });
+    }
   } catch (err) {
     console.error(err);
     card.hidden = true;
@@ -244,13 +257,30 @@ function renderOpenRoomsList() {
 
 // 관리자 화면: "최근에 만든 게임방"(이 브라우저 기록)과 달리, 다른 기기에서 만든
 // 방을 포함해 현재 열려있는 대기실 전체를 보여준다. 누르면 관리자 비밀번호를
-// 입력해 재접속을 시도한다.
+// 입력해 재접속을 시도하고, 휴지통 버튼으로 방을 완전히 삭제할 수도 있다.
 function renderAdminOpenRoomsList() {
-  return renderOpenRoomsInto("adminOpenRoomsCard", "adminOpenRoomsList", (code) => {
-    const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
-    if (pin === null) return;
-    attemptAdminReconnect(code, pin.trim(), null);
-  });
+  return renderOpenRoomsInto(
+    "adminOpenRoomsCard",
+    "adminOpenRoomsList",
+    (code) => {
+      const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
+      if (pin === null) return;
+      attemptAdminReconnect(code, pin.trim(), null);
+    },
+    async (code) => {
+      if (!confirm(`${code}번 방을 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.`)) return;
+      try {
+        await deleteGameCompletely(code);
+      } catch (err) {
+        console.error(err);
+        alert("방 삭제 중 오류가 발생했습니다: " + err.message);
+        return;
+      }
+      removeAdminHistory(code);
+      renderAdminHistoryList();
+      renderAdminOpenRoomsList();
+    }
+  );
 }
 $("btnGoHowTo").addEventListener("click", () => showScreen("screen-howto"));
 $("btnBackHome1").addEventListener("click", () => showScreen("screen-home"));
