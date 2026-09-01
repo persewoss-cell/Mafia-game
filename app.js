@@ -1106,22 +1106,32 @@ function renderChosenSummary(voteMap, players) {
     .join(", ");
 }
 
+// 경찰별 조사 결과를 "OOO(조사성공:마피아), XXX(조사 실패)" 형태로 보여준다.
+// 경찰이 여러 명이면 각자 다른 사람을 조사할 수 있으므로, 이름만 모아 보여주는
+// renderChosenSummary 대신 조사자별 결과를 하나씩 보여준다.
+function renderPoliceCheckSummary(policeChecks, players) {
+  const entries = Object.entries(policeChecks || {});
+  if (entries.length === 0) return "아직 선택 없음";
+  return entries
+    .map(([, check]) => {
+      const targetName = escapeHtml(players.find((p) => p.id === check.targetId)?.name || "?");
+      const resultText = check.success ? `조사성공:${check.isMafia ? "마피아" : "마피아 아님"}` : "조사 실패";
+      return `${targetName}(${resultText})`;
+    })
+    .join(", ");
+}
+
 // 밤 동안 계속 떠 있는 진행 상황 패널. 마피아/의사/경찰이 각자 누구를 선택했는지
 // 실시간으로 보여주고, 낮이 되면(game.phase !== "night") 사라진다.
 function renderNightStatusPanel(game, players) {
   if (game.phase !== "night") return "";
-
-  const policeVoteMap = {};
-  Object.entries(game.policeChecks || {}).forEach(([voterId, check]) => {
-    policeVoteMap[voterId] = check.targetId;
-  });
 
   return `
     <div class="panel night-status-panel">
       <h3 style="margin-top:0;color:#7a54d4;">🌙 밤 진행 상황 (실시간)</h3>
       <p class="sub-text">🔪 마피아가 선택한 사람: <strong>${renderChosenSummary(game.nightVotes, players)}</strong></p>
       <p class="sub-text">💉 의사가 선택한 사람: <strong>${renderChosenSummary(game.doctorVotes, players)}</strong></p>
-      <p class="sub-text">🔍 경찰이 조사한 사람: <strong>${renderChosenSummary(policeVoteMap, players)}</strong></p>
+      <p class="sub-text">🔍 경찰이 조사한 사람: <strong>${renderPoliceCheckSummary(game.policeChecks, players)}</strong></p>
     </div>
   `;
 }
@@ -1369,11 +1379,12 @@ async function closeMafiaVote(code, game, players) {
 
   if (winners.length > 1) {
     // 동률인 대상들만 데리고 최다 득표자가 1명이 될 때까지 계속 재투표한다.
+    // 가짜 투표는 마피아 차례 전체에서 한 번만 하면 되므로(재투표해도 다시 요구하지 않음)
+    // decoyVotes는 여기서 초기화하지 않는다.
     await gameRef(code).update({
       nightSubphase: "mafia_revote",
       nightCandidates: winners,
       nightVotes: {},
-      decoyVotes: {},
       nightRound: (game.nightRound || 1) + 1,
     });
     return;
