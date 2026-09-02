@@ -254,17 +254,17 @@ body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
-.night-status-item { text-align: center; }
+.night-status-item {
+  text-align: center;
+}
 .night-status-label {
-  display: block;
   font-weight: 700;
   font-size: 0.85rem;
   color: var(--text-sub);
-  margin-bottom: 4px;
+  margin-right: 4px;
 }
 body.theme-night .night-status-label { color: #b9b6da; }
 .night-status-value {
-  display: block;
   font-weight: 800;
   font-size: 1.1rem;
 }
