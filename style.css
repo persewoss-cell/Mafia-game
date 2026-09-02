@@ -590,6 +590,15 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
   .admin-split { grid-template-columns: 1fr; }
 }
 
+/* 게임 종료 화면: 오른쪽 참가자 명단 박스가 왼쪽 결과/버튼 영역을 너무 좁게
+   만들지 않도록, 왼쪽에 더 많은 폭을 준다. */
+.admin-split-ended {
+  grid-template-columns: 3fr 2fr;
+}
+@media (max-width: 760px) {
+  .admin-split-ended { grid-template-columns: 1fr; }
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

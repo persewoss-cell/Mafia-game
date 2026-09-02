@@ -836,7 +836,7 @@ function renderAdmin(code, game, players) {
     // 오른쪽 칸에 보여준다.
     el.innerHTML = `
       ${renderCodeChip(game.code)}
-      <div class="admin-split">
+      <div class="admin-split admin-split-ended">
         <div class="admin-split-left">
           ${revealBox}
           ${renderWinnerModalInline(game)}
