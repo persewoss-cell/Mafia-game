@@ -1323,27 +1323,22 @@ function renderAdminControlPanel(code, game, players) {
       </div>`;
     }
     if (game.nightSubphase === "doctor_vote") {
-      const doctorCounts = tally(game.doctorVotes, alivePlayers.map((p) => p.id));
+      // 누구를 살리려는지는 오른쪽(또는 위쪽)의 "밤 진행 상황" 패널에 이미 실시간으로
+      // 뜨고 있으므로, 여기서는 득표 목록을 따로 보여주지 않는다.
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
         ${renderVoteStatusLine("의사 선택 현황", aliveDoctors, game.doctorVotes, "미선택자")}
-        ${renderTallyList(doctorCounts, players)}
         ${renderDecoyStatusLine(alivePlayers, "doctor", game.decoyVotes)}
         <button class="big-btn" id="btnCloseDoctorVote">✅ 의사 선택 마감하고 결과 확인</button>
       </div>`;
     }
     if (game.nightSubphase === "police_vote") {
-      const policeTargetMap = {};
-      Object.entries(game.policeChecks || {}).forEach(([voterId, check]) => {
-        policeTargetMap[voterId] = check.targetId;
-      });
-      const policeCounts = tally(policeTargetMap, game.policeCandidates || []);
+      // 마찬가지로 조사 대상/결과는 "밤 진행 상황" 패널에 이미 표시되므로 생략한다.
       const votedCount = Object.keys(game.policeChecks || {}).length;
       const allDone = alivePolice.length > 0 && votedCount >= alivePolice.length;
       return `<div class="admin-panel">
         <h3>진행 조작</h3>
         ${renderVoteStatusLine("경찰 조사 현황", alivePolice, game.policeChecks, "미선택자")}
-        ${renderTallyList(policeCounts, players)}
         ${renderDecoyStatusLine(alivePlayers, "police", game.decoyVotes)}
         ${allDone ? renderCountdownText(game.revealDeadline, "☀️ 결과 확인으로 넘어갑니다") : ""}
         <button class="big-btn" id="btnClosePoliceVote">✅ ${allDone ? "지금 바로 결과 확인" : "경찰 조사 마감하고 결과 확인"}</button>
@@ -1724,16 +1719,24 @@ function renderPlayer(code, playerId, game, players, me) {
   if (game.status === "ended") {
     const isCitizen = game.winner === "citizen";
     const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
+    // 관리자 종료 화면과 같은 좌/우 분할: 왼쪽엔 결과 발표, 오른쪽엔 참가자 명단을
+    // 사각 박스(3열)로 보여준다.
     el.innerHTML = `
       ${renderCodeChip(game.code)}
-      ${revealBox}
-      <div class="card center-text">
-        <span style="font-size:3rem;display:block;">${isCitizen ? "🎉" : "🔪"}</span>
-        <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
-        <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
-        <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
+      <div class="admin-split admin-split-ended">
+        <div class="admin-split-left">
+          ${revealBox}
+          <div class="card center-text">
+            <span style="font-size:3rem;display:block;">${isCitizen ? "🎉" : "🔪"}</span>
+            <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
+            <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
+            <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
+          </div>
+        </div>
+        <div class="admin-split-right">
+          ${renderPlayerGrid(players, { mode: "admin-view", compact: true })}
+        </div>
       </div>
-      ${renderFinalRoster(players)}
     `;
     $("btnJoinNewGame").addEventListener("click", () => {
       if (playerUnsubGame) playerUnsubGame();
@@ -1783,22 +1786,6 @@ function roleDescription(role) {
   if (role === "doctor") return "밤마다 한 사람을 선택해 마피아의 공격으로부터 지켜주세요.";
   if (role === "police") return "밤마다 한 사람을 조사해서 정체를 알아내세요.";
   return "낮 동안 대화를 통해 마피아를 찾아내 투표로 지목하세요.";
-}
-
-function renderFinalRoster(players) {
-  return `
-    <div class="panel">
-      <h3 style="margin-top:0;">전체 참가자 역할 공개</h3>
-      <ul class="player-list">
-        ${players
-          .map(
-            (p) => `<li>${p.alive ? "" : "💀 "}${escapeHtml(p.name)}
-              <span class="badge ${p.role}">${roleLabel(p.role)}</span></li>`
-          )
-          .join("")}
-      </ul>
-    </div>
-  `;
 }
 
 function renderPlayerAction(code, playerId, game, players, me) {
