@@ -195,7 +195,6 @@ function enterJoinScreen() {
 }
 
 // 아직 게임이 시작되지 않은(대기실 상태) 방 목록을 Firestore에서 최신순으로 가져온다.
-// 참가 화면과 관리자 화면이 동일한 전체 목록을 공유해서 보여줄 수 있도록 공통으로 뺐다.
 async function fetchOpenLobbyRooms(limit = 10) {
   const snap = await db.collection("games").where("status", "==", "lobby").get();
   return snap.docs
@@ -204,9 +203,43 @@ async function fetchOpenLobbyRooms(limit = 10) {
     .slice(0, limit);
 }
 
-// cardId/listId에 열려있는 대기실 목록을 렌더링한다. 방을 누르면 onPick(code)가 호출된다.
+// 참가 화면용: 대기실뿐 아니라 이미 진행 중인 방도 함께 보여준다. 중간에 튕긴
+// 참가자가 코드를 몰라도 쉽게 다시 들어올 수 있도록 하기 위함이다. 진행 중인
+// 방은 현재 참여 인원도 함께 보여줘야 하므로 참가자 수를 추가로 조회한다.
+async function fetchJoinableRooms(limit = 10) {
+  const snap = await db.collection("games").where("status", "in", ["lobby", "playing"]).get();
+  const rooms = snap.docs
+    .map((d) => d.data())
+    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+    .slice(0, limit);
+
+  await Promise.all(
+    rooms.map(async (g) => {
+      if (g.status !== "playing") return;
+      try {
+        const playersSnap = await db.collection("games").doc(g.code).collection("players").get();
+        g.playerCount = playersSnap.size;
+      } catch (e) {
+        g.playerCount = null;
+      }
+    })
+  );
+
+  return rooms;
+}
+
+// 방 목록의 한 줄에 들어갈 안내 문구. 진행 중인 방은 "참여 인원: X명/총 Y명"을 보여준다.
+function roomInfoText(g) {
+  if (g.status === "playing") {
+    const joined = g.playerCount === null || g.playerCount === undefined ? "?" : g.playerCount;
+    return `🎮 진행중 · 참여 인원: ${joined}명/총 ${g.maxPlayers}명`;
+  }
+  return `최대 ${g.maxPlayers}명`;
+}
+
+// cardId/listId에 열려있는 방 목록을 렌더링한다. 방을 누르면 onPick(code)가 호출된다.
 // onDelete가 있으면(관리자 화면) 방마다 삭제(🗑️) 버튼도 함께 보여준다.
-async function renderOpenRoomsInto(cardId, listId, onPick, onDelete) {
+async function renderOpenRoomsInto(cardId, listId, fetchFn, onPick, onDelete) {
   const card = $(cardId);
   const list = $(listId);
   if (!card || !list) return;
@@ -215,7 +248,7 @@ async function renderOpenRoomsInto(cardId, listId, onPick, onDelete) {
   list.innerHTML = "";
 
   try {
-    const rooms = await fetchOpenLobbyRooms();
+    const rooms = await fetchFn();
     if (rooms.length === 0) return;
 
     card.hidden = false;
@@ -224,7 +257,7 @@ async function renderOpenRoomsInto(cardId, listId, onPick, onDelete) {
         (g) =>
           `<li class="open-room-item" data-code="${g.code}">
             ${onDelete ? `<button type="button" class="delete-room-btn" data-code="${g.code}" title="방 삭제">🗑️</button>` : ""}
-            🔑 ${g.code}<br><span class="sub-text">최대 ${g.maxPlayers}명</span>
+            🔑 ${g.code}<br><span class="sub-text">${roomInfoText(g)}</span>
           </li>`
       )
       .join("");
@@ -247,9 +280,10 @@ async function renderOpenRoomsInto(cardId, listId, onPick, onDelete) {
   }
 }
 
-// 참가 화면: 방을 누르면 코드 입력란에 자동으로 채워진다.
+// 참가 화면: 방을 누르면 코드 입력란에 자동으로 채워진다. 대기실뿐 아니라
+// 진행 중인 방도 보여줘서, 중간에 튕긴 참가자가 쉽게 다시 들어올 수 있게 한다.
 function renderOpenRoomsList() {
-  return renderOpenRoomsInto("openRoomsCard", "openRoomsList", (code) => {
+  return renderOpenRoomsInto("openRoomsCard", "openRoomsList", fetchJoinableRooms, (code) => {
     $("inputCode").value = code;
     $("inputName").focus();
   });
@@ -262,6 +296,7 @@ function renderAdminOpenRoomsList() {
   return renderOpenRoomsInto(
     "adminOpenRoomsCard",
     "adminOpenRoomsList",
+    fetchOpenLobbyRooms,
     (code) => {
       const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
       if (pin === null) return;
@@ -831,14 +866,13 @@ function renderAdmin(code, game, players) {
   }
 
   if (game.status === "ended") {
-    const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
-    // 하단의 목록 형태 역할 보기 대신, 게임 중 낮/밤에 쓰던 것과 같은 사각 박스 명단을
-    // 오른쪽 칸에 보여준다.
+    // 게임이 완전히 끝난 화면에서는 밤사이/낮에 누가 탈락했는지는 보여주지 않고,
+    // 승패 결과만 맨 위에 보여준다. 하단의 목록 형태 역할 보기 대신, 게임 중
+    // 낮/밤에 쓰던 것과 같은 사각 박스 명단을 오른쪽 칸에 (절반 크기로) 보여준다.
     el.innerHTML = `
       ${renderCodeChip(game.code)}
       <div class="admin-split admin-split-ended">
         <div class="admin-split-left">
-          ${revealBox}
           ${renderWinnerModalInline(game)}
           <div class="card center-text">
             <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
@@ -846,7 +880,7 @@ function renderAdmin(code, game, players) {
           </div>
         </div>
         <div class="admin-split-right">
-          ${renderPlayerGrid(players, { mode: "admin-view" })}
+          ${renderPlayerGrid(players, { mode: "admin-view", compact: true })}
         </div>
       </div>
     `;
@@ -899,10 +933,10 @@ function renderAdmin(code, game, players) {
       <div class="admin-split-left">
         ${renderCountsRow(game, players)}
         ${liveRevealBox}
-        ${renderPlayerGrid(players, { mode: "admin-view" })}
-        ${renderNightStatusPanel(game, players)}
+        ${renderPlayerGrid(players, { mode: "admin-view", compact: true })}
       </div>
       <div class="admin-split-right">
+        ${renderNightStatusPanel(game, players)}
         ${renderAdminControlPanel(code, game, players)}
       </div>
     </div>
@@ -1090,10 +1124,10 @@ async function renamePlayer(code, playerId, currentName) {
 
 // mode: 'admin-view' | 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'night-police-vote' | 'decoy-vote' | 'plain'
 function renderPlayerGrid(players, opts) {
-  const { mode, myId, selectedId, candidates } = opts;
+  const { mode, myId, selectedId, candidates, compact } = opts;
   const showRoleReveal = mode === "admin-view" || mode === "plain-with-reveal";
 
-  return `<div class="grid">
+  return `<div class="grid${compact ? " compact" : ""}">
     ${players
       .map((p) => {
         const isDead = !p.alive;

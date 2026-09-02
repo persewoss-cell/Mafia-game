@@ -326,6 +326,20 @@ body.theme-night .count-pill { background: rgba(255,255,255,0.08); }
 .count-pill .num { font-size: 1.6rem; font-weight: 800; display: block; }
 .count-pill .label { font-size: 0.8rem; color: var(--text-sub); }
 
+/* 관리자 화면 좌/우 분할에서는 칸이 좁아지므로, 인원 현황 5개가 한 줄에
+   들어가도록 살짝 더 작게 표시한다. 화면이 좁아 위아래로 쌓이면(760px 이하)
+   칸 폭이 다시 넓어지므로 원래 크기로 되돌린다. */
+.admin-split-left .counts-row { gap: 6px; flex-wrap: nowrap; }
+.admin-split-left .count-pill { min-width: 0; padding: 8px 4px; }
+.admin-split-left .count-pill .num { font-size: 1.1rem; }
+.admin-split-left .count-pill .label { font-size: 0.58rem; white-space: nowrap; }
+@media (max-width: 760px) {
+  .admin-split-left .counts-row { flex-wrap: wrap; }
+  .admin-split-left .count-pill { min-width: 90px; padding: 10px 16px; }
+  .admin-split-left .count-pill .num { font-size: 1.6rem; }
+  .admin-split-left .count-pill .label { font-size: 0.8rem; white-space: normal; }
+}
+
 .player-list {
   list-style: none;
   padding: 0;
@@ -512,6 +526,25 @@ body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
+}
+
+/* 관리자 화면(진행 중/종료 후)의 참가자 명단은 칸이 좁으므로 카드를 절반
+   크기로 줄여 한 줄에 4개씩 보이게 한다. */
+.grid.compact {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.grid.compact .player-card {
+  padding: 8px 4px;
+  min-height: 44px;
+  border-radius: 10px;
+  border-width: 2px;
+}
+.grid.compact .player-card .avatar { font-size: 1rem; margin-bottom: 2px; }
+.grid.compact .player-card .pname { font-size: 0.72rem; }
+.grid.compact .role-tag { font-size: 0.6rem; margin-top: 2px; }
+@media (max-width: 420px) {
+  .grid.compact { grid-template-columns: repeat(3, 1fr); }
 }
 
 .player-card {
