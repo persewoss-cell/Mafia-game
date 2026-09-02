@@ -1661,9 +1661,11 @@ function renderPlayer(code, playerId, game, players, me) {
   // playing
   const myRoleBox = `
     <div class="role-box role-${me.role}">
-      ${roleEmoji(me.role)}
-      <span class="role-name">당신은 ${roleLabel(me.role)}입니다.</span>
-      <span class="role-desc">${roleDescription(me.role)}</span>
+      <span class="icon">${roleEmoji(me.role)}</span>
+      <div class="role-box-text">
+        <span class="role-name">당신은 ${roleLabel(me.role)}입니다.</span>
+        <span class="role-desc">${roleDescription(me.role)}</span>
+      </div>
     </div>
   `;
 
