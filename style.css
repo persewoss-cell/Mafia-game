@@ -579,6 +579,17 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
   color: #7a54d4;
 }
 
+.admin-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.admin-split .admin-panel { margin-top: 0; }
+@media (max-width: 760px) {
+  .admin-split { grid-template-columns: 1fr; }
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

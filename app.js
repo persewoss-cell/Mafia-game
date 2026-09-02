@@ -879,14 +879,22 @@ function renderAdmin(code, game, players) {
       : "";
   // 이름+역할은 위쪽 참가자 박스(renderPlayerGrid의 admin-view 모드)에 이미 뜨므로,
   // 여기서는 목록 형태로 중복해서 보여주지 않는다.
+  // "진행 조작" 패널을 오른쪽 칸으로 빼서, 태블릿 화면에서 스크롤 없이 한눈에
+  // 보이도록 좌/우 두 칸으로 나눈다 (좁은 화면에서는 CSS가 자동으로 위아래로 쌓는다).
   el.innerHTML = `
     ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
-    ${renderCountsRow(game, players)}
-    ${liveRevealBox}
-    ${renderPlayerGrid(players, { mode: "admin-view" })}
-    ${renderNightStatusPanel(game, players)}
-    ${renderAdminControlPanel(code, game, players)}
+    <div class="admin-split">
+      <div class="admin-split-left">
+        ${renderCountsRow(game, players)}
+        ${liveRevealBox}
+        ${renderPlayerGrid(players, { mode: "admin-view" })}
+        ${renderNightStatusPanel(game, players)}
+      </div>
+      <div class="admin-split-right">
+        ${renderAdminControlPanel(code, game, players)}
+      </div>
+    </div>
   `;
   wireAdminControlPanel(code, game, players);
 }
@@ -989,8 +997,14 @@ function renderDecoyVote(players, myId, candidates, promptText, selectedId, lock
 function renderPhaseBanner(game) {
   if (game.phase === "day") {
     const labels = { vote: "투표 시간", revote: "재투표 시간", reveal: "결과 발표" };
+    // 첫 번째 낮에는 아직 서로 이름을 모르므로 자기소개 안내를 덧붙인다.
+    const discussionHint =
+      game.dayNumber === 1
+        ? "태블릿이 보이지 않게 덮어두고 한 장소에 모여 돌아가며 자기소개를 하고 이야기를 나눠보세요."
+        : "태블릿이 보이지 않게 덮어두고 한 장소에 모여 이야기를 나눠보세요.";
     return `<div class="phase-banner">☀️ 낮 ${game.dayNumber}일차 - ${labels[game.daySubphase] || ""}
-      <span class="day-num">마피아로 의심되는 사람을 찾아 이야기해보세요</span></div>`;
+      <span class="day-num">마피아로 의심되는 사람을 찾아 이야기해보세요</span>
+      <span class="day-num">${discussionHint}</span></div>`;
   }
   if (game.phase === "night") {
     const labels = {
