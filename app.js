@@ -194,20 +194,12 @@ function enterJoinScreen() {
   showScreen("screen-join");
 }
 
-// 아직 게임이 시작되지 않은(대기실 상태) 방 목록을 Firestore에서 최신순으로 가져온다.
-async function fetchOpenLobbyRooms(limit = 10) {
-  const snap = await db.collection("games").where("status", "==", "lobby").get();
-  return snap.docs
-    .map((d) => d.data())
-    .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
-    .slice(0, limit);
-}
-
-// 참가 화면용: 대기실뿐 아니라 이미 진행 중인 방도 함께 보여준다. 중간에 튕긴
-// 참가자가 코드를 몰라도 쉽게 다시 들어올 수 있도록 하기 위함이다. 진행 중인
-// 방은 현재 참여 인원도 함께 보여줘야 하므로 참가자 수를 추가로 조회한다.
-async function fetchJoinableRooms(limit = 10) {
-  const snap = await db.collection("games").where("status", "in", ["lobby", "playing"]).get();
+// 방 목록을 최신순으로 가져온다. statuses를 주면 해당 상태만, 생략하면 상태와
+// 상관없이 전체를 가져온다. 진행 중인 방은 참여 인원도 함께 보여줘야 하므로
+// 참가자 수를 추가로 조회한다.
+async function fetchRoomsList(limit = 10, statuses) {
+  const query = statuses ? db.collection("games").where("status", "in", statuses) : db.collection("games");
+  const snap = await query.get();
   const rooms = snap.docs
     .map((d) => d.data())
     .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
@@ -228,13 +220,26 @@ async function fetchJoinableRooms(limit = 10) {
   return rooms;
 }
 
-// 방 목록의 한 줄에 들어갈 안내 문구. 진행 중인 방은 "참여 인원: X명/총 Y명"을 보여준다.
+// 참가 화면용: 대기실뿐 아니라 이미 진행 중인 방도 함께 보여준다. 중간에 튕긴
+// 참가자가 코드를 몰라도 쉽게 다시 들어올 수 있도록 하기 위함이다.
+function fetchJoinableRooms(limit = 10) {
+  return fetchRoomsList(limit, ["lobby", "playing"]);
+}
+
+// 관리자 화면용: 대기실/진행중/종료/강제종료 등 상태와 상관없이 만들어진 방 전체를 보여준다.
+function fetchAllRoomsForAdmin(limit = 10) {
+  return fetchRoomsList(limit);
+}
+
+// 방 목록의 한 줄에 들어갈 안내 문구.
 function roomInfoText(g) {
   if (g.status === "playing") {
     const joined = g.playerCount === null || g.playerCount === undefined ? "?" : g.playerCount;
     return `🎮 진행중 · 참여 인원: ${joined}명/총 ${g.maxPlayers}명`;
   }
-  return `최대 ${g.maxPlayers}명`;
+  if (g.status === "ended") return "🏁 종료됨";
+  if (g.status === "terminated") return "🛑 강제 종료됨";
+  return `최대 ${g.maxPlayers}명`; // lobby(대기실)
 }
 
 // cardId/listId에 열려있는 방 목록을 렌더링한다. 방을 누르면 onPick(code)가 호출된다.
@@ -290,13 +295,14 @@ function renderOpenRoomsList() {
 }
 
 // 관리자 화면: "최근에 만든 게임방"(이 브라우저 기록)과 달리, 다른 기기에서 만든
-// 방을 포함해 현재 열려있는 대기실 전체를 보여준다. 누르면 관리자 비밀번호를
+// 방을 포함해 대기실/진행중/종료 등 상태와 상관없이 전체 방을 보여준다(참가
+// 화면과 동일한 목록 + 종료/강제종료된 방까지). 누르면 관리자 비밀번호를
 // 입력해 재접속을 시도하고, 휴지통 버튼으로 방을 완전히 삭제할 수도 있다.
 function renderAdminOpenRoomsList() {
   return renderOpenRoomsInto(
     "adminOpenRoomsCard",
     "adminOpenRoomsList",
-    fetchOpenLobbyRooms,
+    fetchAllRoomsForAdmin,
     (code) => {
       const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
       if (pin === null) return;
@@ -1005,7 +1011,7 @@ function randomDecoyPoliceResult() {
 // locked가 true면(의사/경찰 차례) 한 번 선택한 뒤에는 바꿀 수 없다는 안내를 보여준다.
 function renderDecoyVote(players, myId, candidates, promptText, selectedId, locked) {
   return `
-    <p class="center-text sub-text">${promptText}</p>
+    <p class="center-text decoy-alert">🚨 <span class="decoy-tag">[가짜투표]</span> ${promptText}</p>
     <p class="center-text sub-text">${
       locked
         ? "(선택해도 게임 결과에는 전혀 반영되지 않아요. 한 번 선택하면 바꿀 수 없으니 신중하게 골라주세요!)"
@@ -1037,8 +1043,11 @@ function renderPhaseBanner(game) {
   }
   if (game.phase === "night") {
     const labels = {
+      // 마피아가 재투표 중이라는 사실이 이 공용 배너를 통해 마피아가 아닌 사람에게도
+      // 드러나면 안 되므로, mafia_vote와 mafia_revote는 항상 같은 문구를 쓴다.
+      // (재투표 여부는 관리자 화면의 "진행 조작" 패널에서만 별도로 표시된다.)
       mafia_vote: "마피아가 대상을 고르는 중",
-      mafia_revote: "마피아 재투표 중",
+      mafia_revote: "마피아가 대상을 고르는 중",
       mafia_done: "의사에게 넘어가는 중",
       doctor_vote: "의사가 살릴 사람을 고르는 중",
       police_vote: "경찰이 조사하는 중",

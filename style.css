@@ -470,6 +470,23 @@ body.theme-night .edit-name-btn:active { background: rgba(255,255,255,0.18); }
 }
 body.theme-night .tie-banner { background: #4a3a1a; color: #ffd68a; }
 
+/* 가짜 투표 화면임을 아이들이 확실히 알아채도록 눈에 띄게 표시한다. */
+.decoy-alert {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #c23b3b;
+}
+body.theme-night .decoy-alert { color: #ff9d9d; }
+.decoy-alert .decoy-tag {
+  display: inline-block;
+  background: #c23b3b;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-right: 2px;
+}
+
 .countdown-banner {
   text-align: center;
   border-radius: 16px;
