@@ -832,12 +832,23 @@ function renderAdmin(code, game, players) {
 
   if (game.status === "ended") {
     const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
-    el.innerHTML = renderCodeChip(game.code) + revealBox + renderWinnerModalInline(game) + `
-      <div class="card center-text">
-        <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
-        <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
+    // 하단의 목록 형태 역할 보기 대신, 게임 중 낮/밤에 쓰던 것과 같은 사각 박스 명단을
+    // 오른쪽 칸에 보여준다.
+    el.innerHTML = `
+      ${renderCodeChip(game.code)}
+      <div class="admin-split">
+        <div class="admin-split-left">
+          ${revealBox}
+          ${renderWinnerModalInline(game)}
+          <div class="card center-text">
+            <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
+            <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
+          </div>
+        </div>
+        <div class="admin-split-right">
+          ${renderPlayerGrid(players, { mode: "admin-view" })}
+        </div>
       </div>
-      ${renderAdminRoster(players)}
     `;
 
     // 게임이 완전히 끝났으므로 홈으로 가든 새 게임을 만들든 이 방은 완전히 삭제한다.
@@ -897,22 +908,6 @@ function renderAdmin(code, game, players) {
     </div>
   `;
   wireAdminControlPanel(code, game, players);
-}
-
-function renderAdminRoster(players) {
-  return `
-    <div class="panel">
-      <h3 style="margin-top:0;color:#7a54d4;">👑 관리자 전용: 전체 역할 목록</h3>
-      <ul class="player-list">
-        ${players
-          .map(
-            (p) => `<li>${p.alive ? "" : "💀 "}${escapeHtml(p.name)}
-              <span class="badge ${p.role}">${roleLabel(p.role)}</span></li>`
-          )
-          .join("")}
-      </ul>
-    </div>
-  `;
 }
 
 async function startGame(code, players) {
