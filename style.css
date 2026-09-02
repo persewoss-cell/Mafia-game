@@ -249,6 +249,28 @@ body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
 .night-status-panel {
   border: 2px solid #7a54d4;
 }
+.night-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.night-status-item { text-align: center; }
+.night-status-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-sub);
+  margin-bottom: 4px;
+}
+body.theme-night .night-status-label { color: #b9b6da; }
+.night-status-value {
+  display: block;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+@media (max-width: 520px) {
+  .night-status-grid { grid-template-columns: 1fr; gap: 10px; }
+}
 
 label {
   display: block;
@@ -404,15 +426,6 @@ body.theme-night .howto-role-list li { background: rgba(255,255,255,0.06); }
   text-align: center;
   word-break: keep-all;
 }
-.admin-history-item {
-  position: relative;
-  cursor: pointer;
-  border: 2px solid transparent;
-  line-height: 1.5;
-}
-.admin-history-item:active { transform: scale(0.96); border-color: var(--accent); }
-.admin-history-item .history-status { font-size: 0.75rem; }
-
 .open-room-item {
   position: relative;
   cursor: pointer;
@@ -617,14 +630,19 @@ body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
 .role-tag.police { color: var(--police); }
 
 .waiting-box {
-  text-align: center;
-  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  padding: 14px 18px;
   border-radius: var(--radius);
   background: rgba(0,0,0,0.04);
   margin-bottom: 20px;
 }
 body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
-.waiting-box .icon { font-size: 2.4rem; display: block; margin-bottom: 8px; }
+.waiting-box .icon { font-size: 2.1rem; flex-shrink: 0; }
+.waiting-box-text { flex: 1; min-width: 0; }
+.waiting-box-text p { margin: 2px 0; }
 
 .admin-panel {
   border: 2px dashed #7a54d4;

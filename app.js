@@ -177,7 +177,6 @@ function enterCreateScreen() {
   // 이전에 게임을 한 번 만든 뒤에는 제출 버튼이 계속 비활성 상태로 남아있으므로,
   // 이 화면에 들어올 때마다 다시 눌러지도록 초기화한다.
   $("btnCreateGame").disabled = false;
-  renderAdminHistoryList();
   renderAdminOpenRoomsList();
   showScreen("screen-create");
 }
@@ -317,8 +316,6 @@ function renderAdminOpenRoomsList() {
         alert("방 삭제 중 오류가 발생했습니다: " + err.message);
         return;
       }
-      removeAdminHistory(code);
-      renderAdminHistoryList();
       renderAdminOpenRoomsList();
     }
   );
@@ -426,7 +423,6 @@ $("formCreateGame").addEventListener("submit", async (e) => {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    addAdminHistory(code);
     saveSession({ code, role: "admin" });
     startAdminSession(code);
   } catch (err) {
@@ -437,107 +433,8 @@ $("formCreateGame").addEventListener("submit", async (e) => {
 });
 
 /* ------------------------------------------------------------
-   관리자 재접속 (최근 만든 게임방 목록 + 코드로 직접 재접속)
+   관리자 재접속 (코드로 직접 재접속)
    ------------------------------------------------------------ */
-const ADMIN_HISTORY_KEY = "mafiaAdminHistory";
-
-function getAdminHistory() {
-  try {
-    const arr = JSON.parse(localStorage.getItem(ADMIN_HISTORY_KEY));
-    return Array.isArray(arr) ? arr : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function addAdminHistory(code) {
-  const history = getAdminHistory().filter((h) => h.code !== code);
-  history.unshift({ code, createdAt: Date.now() });
-  localStorage.setItem(ADMIN_HISTORY_KEY, JSON.stringify(history.slice(0, 8)));
-}
-
-function removeAdminHistory(code) {
-  const history = getAdminHistory().filter((h) => h.code !== code);
-  localStorage.setItem(ADMIN_HISTORY_KEY, JSON.stringify(history));
-}
-
-async function renderAdminHistoryList() {
-  const card = $("adminHistoryCard");
-  const list = $("adminHistoryList");
-  const history = getAdminHistory();
-
-  if (history.length === 0) {
-    card.hidden = true;
-    list.innerHTML = "";
-    return;
-  }
-
-  card.hidden = false;
-  list.innerHTML = history
-    .map(
-      (h) =>
-        `<li class="admin-history-item" data-code="${h.code}">
-          <button type="button" class="delete-room-btn" data-code="${h.code}" title="방 삭제">🗑️</button>
-          🔑 ${h.code}<br><span class="sub-text history-status">확인 중...</span>
-        </li>`
-    )
-    .join("");
-
-  list.querySelectorAll(".admin-history-item").forEach((item) => {
-    item.addEventListener("click", () => {
-      const code = item.dataset.code;
-      const pin = prompt(`${code}번 방 관리자 비밀번호(4자리)를 입력하세요.`);
-      if (pin === null) return;
-      attemptAdminReconnect(code, pin.trim(), null);
-    });
-  });
-
-  list.querySelectorAll(".delete-room-btn").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const code = btn.dataset.code;
-      if (!confirm(`${code}번 방을 완전히 삭제하시겠습니까? 되돌릴 수 없습니다.`)) return;
-      try {
-        await deleteGameCompletely(code);
-      } catch (err) {
-        console.error(err);
-        alert("방 삭제 중 오류가 발생했습니다: " + err.message);
-        return;
-      }
-      removeAdminHistory(code);
-      renderAdminHistoryList();
-    });
-  });
-
-  await Promise.all(
-    history.map(async (h) => {
-      const item = list.querySelector(`.admin-history-item[data-code="${h.code}"]`);
-      if (!item) return;
-      const statusEl = item.querySelector(".history-status");
-      try {
-        const snap = await db.collection("games").doc(h.code).get();
-        if (!snap.exists) {
-          statusEl.textContent = "삭제됨";
-          item.style.opacity = "0.5";
-          removeAdminHistory(h.code);
-          return;
-        }
-        const g = snap.data();
-        statusEl.textContent =
-          g.status === "lobby"
-            ? "대기중"
-            : g.status === "ended"
-            ? "종료됨"
-            : g.status === "terminated"
-            ? "강제 종료됨"
-            : "진행중";
-      } catch (e) {
-        statusEl.textContent = "확인 실패";
-      }
-    })
-  );
-}
-
 async function attemptAdminReconnect(code, pin, errorElId) {
   const setError = (msg) => {
     if (errorElId) $(errorElId).textContent = msg || "";
@@ -568,7 +465,6 @@ async function attemptAdminReconnect(code, pin, errorElId) {
       return;
     }
     setError("");
-    addAdminHistory(code);
     saveSession({ code, role: "admin" });
     startAdminSession(code);
   } catch (err) {
@@ -905,7 +801,6 @@ function renderAdmin(code, game, players) {
         alert("방 삭제 중 오류가 발생했습니다: " + err.message);
         return false;
       }
-      removeAdminHistory(code);
       clearSession();
       return true;
     }
@@ -930,11 +825,13 @@ function renderAdmin(code, game, players) {
       : "";
   // 이름+역할은 위쪽 참가자 박스(renderPlayerGrid의 admin-view 모드)에 이미 뜨므로,
   // 여기서는 목록 형태로 중복해서 보여주지 않는다.
-  // "진행 조작" 패널을 오른쪽 칸으로 빼서, 태블릿 화면에서 스크롤 없이 한눈에
-  // 보이도록 좌/우 두 칸으로 나눈다 (좁은 화면에서는 CSS가 자동으로 위아래로 쌓는다).
+  // "밤 진행 상황"은 코드/밤 배너처럼 좌우 전체 폭으로 보여주고, "진행 조작" 패널만
+  // 오른쪽 칸으로 빼서 태블릿 화면에서 스크롤 없이 한눈에 보이도록 좌/우로 나눈다
+  // (좁은 화면에서는 CSS가 자동으로 위아래로 쌓는다).
   el.innerHTML = `
     ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
+    ${renderNightStatusPanel(game, players)}
     <div class="admin-split">
       <div class="admin-split-left">
         ${renderCountsRow(game, players)}
@@ -942,7 +839,6 @@ function renderAdmin(code, game, players) {
         ${renderPlayerGrid(players, { mode: "admin-view", compact: true })}
       </div>
       <div class="admin-split-right">
-        ${renderNightStatusPanel(game, players)}
         ${renderAdminControlPanel(code, game, players)}
       </div>
     </div>
@@ -1228,50 +1124,56 @@ function renderDecoyStatusLine(alivePlayers, excludeRole, decoyVotes) {
   return renderVoteStatusLine("가짜 투표(다른 참가자) 참여 현황", eligible, decoyVotes, "미참여자");
 }
 
-// 이름 → 표(투표/선택) 수를 집계해 "OOO(2표), XXX" 형태의 요약 문구로 보여준다.
-// 밤 동안 마피아/의사/경찰이 각자 누구를 선택했는지 관리자가 계속 확인할 수 있게 해준다.
-function renderChosenSummary(voteMap, players) {
+// 현재 가장 많이 선택된 사람(동률이면 여러 명)의 이름만 간단히 보여준다.
+// 득표 수나 후보 목록은 보여주지 않고, 최종(또는 현재 우세한) 이름만 표시한다.
+function renderChosenName(voteMap, players) {
   const counts = {};
   Object.values(voteMap || {}).forEach((targetId) => {
     if (!targetId) return;
     counts[targetId] = (counts[targetId] || 0) + 1;
   });
-  const entries = Object.entries(counts);
-  if (entries.length === 0) return "아직 선택 없음";
-  return entries
-    .map(([id, n]) => {
-      const name = escapeHtml(players.find((p) => p.id === id)?.name || "?");
-      return n > 1 ? `${name}(${n}표)` : name;
-    })
-    .join(", ");
+  const winners = topVoted(counts);
+  if (winners.length === 0) return "-";
+  return winners.map((id) => escapeHtml(players.find((p) => p.id === id)?.name || "?")).join(", ");
 }
 
-// 경찰별 조사 결과를 "OOO(조사성공:마피아), XXX(조사 실패)" 형태로 보여준다.
-// 경찰이 여러 명이면 각자 다른 사람을 조사할 수 있으므로, 이름만 모아 보여주는
-// renderChosenSummary 대신 조사자별 결과를 하나씩 보여준다.
+// 경찰별 조사 결과를 "OOO(마피아)", "OOO(조사 실패)"처럼 짧게 보여준다.
+// 경찰이 여러 명이면 각자 다른 사람을 조사할 수 있으므로 조사자별로 하나씩 보여준다.
 function renderPoliceCheckSummary(policeChecks, players) {
   const entries = Object.entries(policeChecks || {});
-  if (entries.length === 0) return "아직 선택 없음";
+  if (entries.length === 0) return "-";
   return entries
     .map(([, check]) => {
       const targetName = escapeHtml(players.find((p) => p.id === check.targetId)?.name || "?");
-      const resultText = check.success ? `조사성공:${check.isMafia ? "마피아" : "마피아 아님"}` : "조사 실패";
+      const resultText = check.success ? (check.isMafia ? "마피아" : "마피아 아님") : "조사 실패";
       return `${targetName}(${resultText})`;
     })
     .join(", ");
 }
 
 // 밤 동안 계속 떠 있는 진행 상황 패널. 마피아/의사/경찰이 각자 누구를 선택했는지
-// 실시간으로 보여주고, 낮이 되면(game.phase !== "night") 사라진다.
+// 실시간으로 보여주고, 낮이 되면(game.phase !== "night") 사라진다. 코드/밤 배너처럼
+// 좌우 전체 폭을 쓰고, 세 항목을 나란히 배치한다.
 function renderNightStatusPanel(game, players) {
   if (game.phase !== "night") return "";
 
   return `
     <div class="panel night-status-panel">
       <h3 style="margin-top:0;color:#7a54d4;">🌙 밤 진행 상황 (실시간)</h3>
-      <p class="sub-text">🔪 마피아가 선택한 사람: <strong>${renderChosenSummary(game.nightVotes, players)}</strong></p>
-      <p class="sub-text">💉 의사가 선택한 사람: <strong>${renderChosenSummary(game.doctorVotes, players)}</strong></p>
-      <p class="sub-text">🔍 경찰이 조사한 사람: <strong>${renderPoliceCheckSummary(game.policeChecks, players)}</strong></p>
+      <div class="night-status-grid">
+        <div class="night-status-item">
+          <span class="night-status-label">🔪 마피아 선택:</span>
+          <span class="night-status-value">${renderChosenName(game.nightVotes, players)}</span>
+        </div>
+        <div class="night-status-item">
+          <span class="night-status-label">💉 의사 선택:</span>
+          <span class="night-status-value">${renderChosenName(game.doctorVotes, players)}</span>
+        </div>
+        <div class="night-status-item">
+          <span class="night-status-label">🔍 경찰 선택:</span>
+          <span class="night-status-value">${renderPoliceCheckSummary(game.policeChecks, players)}</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1691,7 +1593,7 @@ function startPlayerSession(code, playerId) {
 }
 
 function renderPlayerWaiting(msg) {
-  $("playerContent").innerHTML = `<div class="waiting-box"><span class="icon">⏳</span><p>${msg}</p></div>`;
+  $("playerContent").innerHTML = waitingBox("⏳", `<p>${msg}</p>`);
 }
 
 function renderPlayer(code, playerId, game, players, me) {
@@ -1790,7 +1692,7 @@ function roleDescription(role) {
 
 function renderPlayerAction(code, playerId, game, players, me) {
   if (!me.alive) {
-    return `<div class="waiting-box"><span class="icon">👻</span><p>탈락했습니다. 게임이 끝날 때까지 지켜봐주세요.</p></div>
+    return `${waitingBox("👻", `<p>탈락했습니다. 게임이 끝날 때까지 지켜봐주세요.</p>`)}
       ${renderPlayerGrid(players, { mode: "plain", myId: playerId })}`;
   }
 
@@ -1862,7 +1764,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
     }
     if (game.nightSubphase === "mafia_done") {
       const nextIsDoctor = aliveList(players).some((p) => p.role === "doctor");
-      return `<div class="waiting-box"><span class="icon">🌙</span><p>모두 눈을 감고 조용히 기다려주세요...</p></div>${renderCountdownText(
+      return `${waitingBox("🌙", `<p>모두 눈을 감고 조용히 기다려주세요...</p>`)}${renderCountdownText(
         game.revealDeadline,
         nextIsDoctor ? "💉 의사에게 넘어갑니다" : "🔍 경찰에게 넘어갑니다"
       )}`;
@@ -1886,7 +1788,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
       }
       const myDoctorDecoy = game.decoyVotes ? game.decoyVotes[playerId] : null;
       if (myDoctorDecoy) {
-        return `<div class="waiting-box"><span class="icon">💉</span><p>선택을 완료했습니다. 다른 친구들을 기다려주세요...</p></div>`;
+        return waitingBox("💉", `<p>선택을 완료했습니다. 다른 친구들을 기다려주세요...</p>`);
       }
       return renderDecoyVote(
         players,
@@ -1908,11 +1810,10 @@ function renderPlayerAction(code, playerId, game, players, me) {
               }</span> 입니다.</p>`
             : `<p><strong>${escapeHtml(myCheck.targetName)}</strong>님에 대한 조사를 실패했습니다.</p>`;
           return `
-            <div class="waiting-box">
-              <span class="icon">${myCheck.success ? "🔍" : "❓"}</span>
-              ${resultText}
-              <p class="sub-text">잘 확인하세요. 다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>
-            </div>
+            ${waitingBox(
+              myCheck.success ? "🔍" : "❓",
+              `${resultText}<p class="sub-text">잘 확인하세요. 다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>`
+            )}
             ${renderCountdownText(game.revealDeadline, "다음으로 넘어갑니다")}
           `;
         }
@@ -1933,11 +1834,12 @@ function renderPlayerAction(code, playerId, game, players, me) {
       if (myPoliceDecoy) {
         const decoyTargetName = players.find((p) => p.id === myPoliceDecoy.targetId)?.name || "?";
         return `
-          <div class="waiting-box">
-            <span class="icon">🔍</span>
-            <p><strong>${escapeHtml(decoyTargetName)}</strong>님은 <strong>${escapeHtml(myPoliceDecoy.resultText)}</strong></p>
-            <p class="sub-text">다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>
-          </div>
+          ${waitingBox(
+            "🔍",
+            `<p><strong>${escapeHtml(decoyTargetName)}</strong>님은 <strong>${escapeHtml(
+              myPoliceDecoy.resultText
+            )}</strong></p><p class="sub-text">다른 경찰이 조사를 마칠 때까지 기다려주세요.</p>`
+          )}
           ${renderCountdownText(game.revealDeadline, "다음으로 넘어갑니다")}
         `;
       }
@@ -1958,7 +1860,13 @@ function renderPlayerAction(code, playerId, game, players, me) {
     }
   }
 
-  return `<div class="waiting-box"><span class="icon">⏳</span><p>잠시만 기다려주세요...</p></div>`;
+  return waitingBox("⏳", `<p>잠시만 기다려주세요...</p>`);
+}
+
+// 아이콘을 왼쪽, 문구를 오른쪽에 나란히 배치해 세로 높이를 줄인 공통 박스.
+// (탈락/사망/대기 등 이 형태를 쓰는 모든 곳에 공통 적용한다.)
+function waitingBox(icon, textHtml) {
+  return `<div class="waiting-box"><span class="icon">${icon}</span><div class="waiting-box-text">${textHtml}</div></div>`;
 }
 
 // revealDeadline이 있으면(=게임이 아직 진행 중이면) "N초 뒤에 ~"라는 카운트다운 문구를 보여준다.
@@ -1973,40 +1881,43 @@ function renderCountdownText(deadline, label) {
 // 중복으로 뜨지 않도록 뺀다 (참가자 화면에는 진행 조작 패널이 없으므로 항상 표시한다).
 function renderDayRevealBox(game, players, includeCountdown = true) {
   const r = game.lastDayResult;
-  let inner;
+  let icon, textHtml;
   if (!r || r.noVotes) {
-    inner = `<span class="icon">🤷</span><p>아무도 투표하지 않아 탈락자가 없습니다.</p>`;
+    icon = "🤷";
+    textHtml = `<p>아무도 투표하지 않아 탈락자가 없습니다.</p>`;
   } else {
-    inner = `
-      <span class="icon">${r.eliminatedRole === "mafia" ? "🔪" : "😢"}</span>
+    icon = r.eliminatedRole === "mafia" ? "🔪" : "😢";
+    textHtml = `
       <p><strong>${escapeHtml(r.eliminatedName)}</strong>님이 탈락했습니다.</p>
       <p class="sub-text">정체는 <span class="badge ${r.eliminatedRole}">${roleLabel(r.eliminatedRole)}</span> 였습니다.</p>
     `;
   }
-  return `<div class="waiting-box">${inner}</div>${includeCountdown ? renderCountdownText(game.revealDeadline, "🌙 밤이 됩니다") : ""}`;
+  return `${waitingBox(icon, textHtml)}${includeCountdown ? renderCountdownText(game.revealDeadline, "🌙 밤이 됩니다") : ""}`;
 }
 
 function renderNightRevealBox(game, players, includeCountdown = true) {
   const r = game.lastNightResult;
-  let inner;
+  let icon, textHtml;
   if (!r || r.nobody) {
-    inner = `<span class="icon">🌅</span><p>어젯밤은 아무 일도 일어나지 않았습니다.</p>`;
+    icon = "🌅";
+    textHtml = `<p>어젯밤은 아무 일도 일어나지 않았습니다.</p>`;
   } else if (r.saved) {
-    inner = `<span class="icon">💉</span><p>마피아의 공격이 있었지만 의사 선생님이 살렸습니다!</p>`;
+    icon = "💉";
+    textHtml = `<p>마피아의 공격이 있었지만 의사 선생님이 살렸습니다!</p>`;
   } else if (r.doctorFailed) {
-    inner = `
-      <span class="icon">💀</span>
+    icon = "💀";
+    textHtml = `
       <p>의사 선생님이 <strong>${escapeHtml(r.targetName)}</strong>님을 살리려 했지만 실패했습니다.</p>
       <p class="sub-text">정체는 <span class="badge ${r.targetRole}">${roleLabel(r.targetRole)}</span> 였습니다.</p>
     `;
   } else {
-    inner = `
-      <span class="icon">💀</span>
+    icon = "💀";
+    textHtml = `
       <p><strong>${escapeHtml(r.targetName)}</strong>님이 밤사이 목숨을 잃었습니다.</p>
       <p class="sub-text">정체는 <span class="badge ${r.targetRole}">${roleLabel(r.targetRole)}</span> 였습니다.</p>
     `;
   }
-  return `<div class="waiting-box">${inner}</div>${includeCountdown ? renderCountdownText(game.revealDeadline, "☀️ 낮이 됩니다") : ""}`;
+  return `${waitingBox(icon, textHtml)}${includeCountdown ? renderCountdownText(game.revealDeadline, "☀️ 낮이 됩니다") : ""}`;
 }
 
 function wirePlayerAction(code, playerId, game, players, me) {
