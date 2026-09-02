@@ -702,6 +702,20 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
 .winner-citizen { color: var(--citizen); }
 .winner-mafia { color: var(--mafia); }
 
+/* 승패 결과 카드도 아이콘을 왼쪽에, 제목/설명을 오른쪽에 나란히 배치해
+   세로 높이를 줄인다. */
+.result-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  margin-bottom: 12px;
+}
+.result-icon-row .icon { font-size: 2.6rem; flex-shrink: 0; }
+.result-icon-row .result-icon-text { flex: 1; min-width: 0; }
+.result-icon-row h2 { margin: 0 0 4px; }
+.result-icon-row .sub-text { margin: 0; }
+
 .tally-list { list-style: none; padding: 0; margin: 10px 0; }
 .tally-list li {
   display: flex;

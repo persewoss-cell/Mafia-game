@@ -1513,10 +1513,14 @@ function renderWinnerModalInline(game) {
   if (!game.winner) return "";
   const isCitizen = game.winner === "citizen";
   return `
-    <div class="card center-text">
-      <span style="font-size:3rem;display:block;">${isCitizen ? "🎉" : "🔪"}</span>
-      <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
-      <p class="sub-text">${isCitizen ? "마피아를 모두 찾아냈습니다." : "마피아의 수가 시민 수 이상이 되었습니다."}</p>
+    <div class="card">
+      <div class="result-icon-row">
+        <span class="icon">${isCitizen ? "🎉" : "🔪"}</span>
+        <div class="result-icon-text">
+          <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
+          <p class="sub-text">${isCitizen ? "마피아를 모두 찾아냈습니다." : "마피아의 수가 시민 수 이상이 되었습니다."}</p>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1629,9 +1633,13 @@ function renderPlayer(code, playerId, game, players, me) {
         <div class="admin-split-left">
           ${revealBox}
           <div class="card center-text">
-            <span style="font-size:3rem;display:block;">${isCitizen ? "🎉" : "🔪"}</span>
-            <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
-            <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
+            <div class="result-icon-row">
+              <span class="icon">${isCitizen ? "🎉" : "🔪"}</span>
+              <div class="result-icon-text">
+                <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
+                <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
+              </div>
+            </div>
             <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
           </div>
         </div>
