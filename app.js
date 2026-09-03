@@ -776,6 +776,8 @@ function renderAdmin(code, game, players) {
         ${renderWinnerModalInline(game)}
         <div class="card center-text">
           <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
+        </div>
+        <div class="card center-text">
           <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
         </div>
       </div>
@@ -1756,6 +1758,8 @@ function renderPlayer(code, playerId, game, players, me) {
               <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
             </div>
           </div>
+        </div>
+        <div class="card center-text">
           <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
         </div>
       </div>
