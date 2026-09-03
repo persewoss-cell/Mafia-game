@@ -1743,13 +1743,11 @@ function renderPlayer(code, playerId, game, players, me) {
 
   if (game.status === "ended") {
     const isCitizen = game.winner === "citizen";
-    const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
-    // 관리자 종료 화면과 같은 레이아웃: 결과 발표와 버튼을 위쪽에 한 줄로 나란히
-    // 배치하고, 그 아래 7열 참가자 명단(역할/생존여부 포함)을 보여준다.
+    // 관리자 종료 화면과 완전히 같은 레이아웃: 결과 발표 박스 + 버튼 박스를
+    // 위쪽에 한 줄로 나란히 배치하고, 그 아래 7열 참가자 명단을 보여준다.
     el.innerHTML = `
       ${renderCodeChip(game.code)}
       <div class="ended-top-row">
-        ${revealBox}
         <div class="card center-text">
           <div class="result-icon-row">
             <span class="icon">${isCitizen ? "🎉" : "🔪"}</span>
