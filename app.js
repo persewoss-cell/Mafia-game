@@ -783,7 +783,7 @@ function renderAdmin(code, game, players) {
           <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
         </div>
       </div>
-      <hr class="ended-divider" />
+      <hr class="thin-divider" />
       ${renderEndedGrid(players)}
     `;
 
@@ -834,6 +834,7 @@ function renderAdmin(code, game, players) {
     ${renderCountsRow(game, players)}
     ${renderAdminStatusBox(game, players)}
     ${liveRevealBox}
+    <hr class="thin-divider" />
     ${renderAdminLiveGrid(game, players)}
     ${renderAdminControlPanel(code, game, players)}
   `;
@@ -907,6 +908,7 @@ function renderDecoyVote(players, myId, candidates, promptText, selectedId, lock
         ? "(선택해도 게임 결과에는 전혀 반영되지 않아요. 한 번 선택하면 바꿀 수 없으니 신중하게 골라주세요!)"
         : "(선택해도 게임 결과에는 전혀 반영되지 않아요. 그래도 다음으로 넘어가려면 반드시 한 명을 선택해야 해요!)"
     }</p>
+    <hr class="thin-divider" />
     ${renderPlayerGrid(players, {
       mode: "decoy-vote",
       myId,
@@ -1769,7 +1771,7 @@ function renderPlayer(code, playerId, game, players, me) {
           <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
         </div>
       </div>
-      <hr class="ended-divider" />
+      <hr class="thin-divider" />
       ${renderEndedGrid(players)}
     `;
     $("btnPlayerEndToHome").addEventListener("click", () => {
@@ -1834,6 +1836,7 @@ function roleDescription(role) {
 function renderPlayerAction(code, playerId, game, players, me) {
   if (!me.alive) {
     return `${waitingBox("👻", `<p>탈락했습니다. 게임이 끝날 때까지 지켜봐주세요.</p>`)}
+      <hr class="thin-divider" />
       ${renderPlayerGrid(players, { mode: "plain", myId: playerId })}`;
   }
 
@@ -1857,6 +1860,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
                 <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명]</span>
               </div>`
         }
+        <hr class="thin-divider" />
         ${renderPlayerGrid(gridPlayers, {
           mode: "day-vote",
           myId: playerId,
@@ -1891,6 +1895,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
                   <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명 (마피아)]</span>
                 </div>`
           }
+          <hr class="thin-divider" />
           ${renderPlayerGrid(gridPlayers, {
             mode: "night-mafia-vote",
             myId: playerId,
@@ -1927,6 +1932,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
             <span>누구를 살릴지 선택하세요.</span>
             <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명 (의사)]</span>
           </div>
+          <hr class="thin-divider" />
           ${renderPlayerGrid(players, {
             mode: "night-doctor-vote",
             myId: playerId,
@@ -1974,6 +1980,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
             <span>조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</span>
             <span class="vote-status-tag">[조사현황: ${votedCount} / ${eligibleCount}명 (경찰)]</span>
           </div>
+          <hr class="thin-divider" />
           ${renderPlayerGrid(players, {
             mode: "night-police-vote",
             myId: playerId,

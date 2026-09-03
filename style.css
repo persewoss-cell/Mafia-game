@@ -794,12 +794,12 @@ body.theme-night .admin-vote-card.vote-lead-yellow-light { background: #4a3d1e; 
   .ended-top-row .ended-btn-card .big-btn { width: 100%; }
 }
 
-.ended-divider {
+.thin-divider {
   border: none;
   border-top: 1px solid rgba(0,0,0,0.12);
   margin: 10px 0;
 }
-body.theme-night .ended-divider { border-top-color: rgba(255,255,255,0.15); }
+body.theme-night .thin-divider { border-top-color: rgba(255,255,255,0.15); }
 
 .modal-overlay {
   position: fixed;
