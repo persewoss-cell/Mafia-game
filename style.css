@@ -348,8 +348,8 @@ input[type="text"]:focus, input[type="number"]:focus {
   overflow: hidden;
 }
 body.theme-night .count-pill { background: rgba(255,255,255,0.08); }
-.count-pill .label { font-size: 0.75rem; color: var(--text-sub); margin-right: 4px; }
-.count-pill .num { font-size: 1.15rem; font-weight: 800; }
+.count-pill .label { font-size: 0.92rem; color: var(--text-sub); margin-right: 4px; }
+.count-pill .num { font-size: 1.4rem; font-weight: 800; }
 @media (max-width: 480px) {
   .counts-row { grid-template-columns: repeat(3, 1fr); }
 }
@@ -549,47 +549,43 @@ body.theme-night .role-box.role-police { background: #3d3016; color: #f0c877; }
 }
 body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
 
+/* 참가자 선택 그리드: 관리자 실시간 명단과 같은 모양으로 한 줄에 7개, 아이콘
+   왼쪽 + 이름/역할 오른쪽으로 배치해 위아래 여백을 줄인다. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
   margin-bottom: 20px;
 }
-
-/* 관리자 화면(진행 중/종료 후)의 참가자 명단은 칸이 좁으므로 카드를 줄여
-   한 줄에 3개씩 보이게 한다. */
-.grid.compact {
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+@media (max-width: 760px) {
+  .grid { grid-template-columns: repeat(5, 1fr); }
 }
-.grid.compact .player-card {
-  padding: 10px 6px;
-  min-height: 60px;
-  border-radius: 12px;
-  border-width: 2px;
+@media (max-width: 520px) {
+  .grid { grid-template-columns: repeat(4, 1fr); }
 }
-.grid.compact .player-card .avatar { font-size: 1.4rem; margin-bottom: 3px; }
-.grid.compact .player-card .pname { font-size: 0.85rem; }
-.grid.compact .role-tag { font-size: 0.68rem; margin-top: 3px; }
-@media (max-width: 420px) {
-  .grid.compact { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 380px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 .player-card {
-  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
   background: var(--card-bg);
-  padding: 16px 10px;
-  text-align: center;
+  padding: 8px;
+  text-align: left;
   box-shadow: var(--shadow);
   cursor: pointer;
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   transition: transform 0.08s ease, border-color 0.15s ease;
-  min-height: 90px;
+  min-height: 54px;
 }
 .player-card:active { transform: scale(0.96); }
-.player-card .avatar { font-size: 2rem; display: block; margin-bottom: 6px; }
-.player-card .pname { font-weight: 700; font-size: 1.05rem; word-break: keep-all; }
-.player-card .vote-count { font-size: 0.8rem; color: var(--text-sub); margin-top: 4px; }
+.player-card .avatar { font-size: 1.6rem; flex-shrink: 0; }
+.player-card .pc-text { flex: 1; min-width: 0; }
+.player-card .pname { font-weight: 700; font-size: 0.85rem; word-break: keep-all; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-card .role-tag { font-size: 0.68rem; margin-top: 1px; }
 
 .player-card.dead {
   background: var(--card-bg-dead);
@@ -647,6 +643,7 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
 .admin-action-row {
   margin: 16px 0;
 }
+.admin-action-row .big-btn { padding: 14px 22px; min-height: 0; }
 
 .vote-status-box { margin-bottom: 16px; }
 .vote-status-box .sub-text { margin: 4px 0; }
@@ -666,31 +663,31 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
   gap: 6px;
   background: var(--card-bg);
   border-radius: 12px;
-  padding: 6px 6px 20px;
+  padding: 6px 6px 22px;
   position: relative;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
-  min-height: 54px;
+  min-height: 60px;
   overflow: hidden;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
-.admin-vote-card .avatar { font-size: 1.4rem; flex-shrink: 0; }
+.admin-vote-card .avatar { font-size: 1.7rem; flex-shrink: 0; }
 .admin-vote-card .avc-text { flex: 1; min-width: 0; }
 .admin-vote-card .pname {
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.92rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.admin-vote-card .role-tag { font-size: 0.6rem; display: block; margin-top: 1px; }
+.admin-vote-card .role-tag { font-size: 0.72rem; display: block; margin-top: 1px; }
 .admin-vote-card .avc-footer {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   text-align: center;
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 0;
   background: rgba(0,0,0,0.06);
@@ -720,24 +717,21 @@ body.theme-night .admin-vote-card.vote-lead-yellow-light { background: #4a3d1e; 
   .admin-live-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
-.admin-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  align-items: start;
+/* 게임 완전 종료 화면: 결과 발표 박스와 버튼 박스를 위쪽에 한 줄로 나란히 두고,
+   그 아래에 참가자 명단(admin-live-grid, 7열)을 전체 폭으로 보여준다. */
+.ended-top-row {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 4px;
 }
-.admin-split .admin-panel { margin-top: 0; }
-@media (max-width: 760px) {
-  .admin-split { grid-template-columns: 1fr; }
+.ended-top-row > * {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
 }
-
-/* 게임 종료 화면: 오른쪽 참가자 명단 박스가 왼쪽 결과/버튼 영역을 너무 좁게
-   만들지 않도록, 왼쪽에 더 많은 폭을 준다. */
-.admin-split-ended {
-  grid-template-columns: 3fr 2fr;
-}
-@media (max-width: 760px) {
-  .admin-split-ended { grid-template-columns: 1fr; }
+@media (max-width: 700px) {
+  .ended-top-row { flex-direction: column; }
 }
 
 .modal-overlay {

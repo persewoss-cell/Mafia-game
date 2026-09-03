@@ -768,23 +768,18 @@ function renderAdmin(code, game, players) {
   }
 
   if (game.status === "ended") {
-    // 게임이 완전히 끝난 화면에서는 밤사이/낮에 누가 탈락했는지는 보여주지 않고,
-    // 승패 결과만 맨 위에 보여준다. 하단의 목록 형태 역할 보기 대신, 게임 중
-    // 낮/밤에 쓰던 것과 같은 사각 박스 명단을 오른쪽 칸에 (절반 크기로) 보여준다.
+    // 게임이 완전히 끝난 화면: 결과 안내와 버튼을 위쪽에 한 줄로 나란히 배치하고,
+    // 그 아래 관리자 실시간 화면과 같은 7열 참가자 명단(역할/생존여부 포함)을 보여준다.
     el.innerHTML = `
       ${renderCodeChip(game.code)}
-      <div class="admin-split admin-split-ended">
-        <div class="admin-split-left">
-          ${renderWinnerModalInline(game)}
-          <div class="card center-text">
-            <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
-            <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
-          </div>
-        </div>
-        <div class="admin-split-right">
-          ${renderPlayerGrid(players, { mode: "admin-view", compact: true })}
+      <div class="ended-top-row">
+        ${renderWinnerModalInline(game)}
+        <div class="card center-text">
+          <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
+          <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
         </div>
       </div>
+      ${renderEndedGrid(players)}
     `;
 
     // 게임이 완전히 끝났으므로 홈으로 가든 새 게임을 만들든 이 방은 완전히 삭제한다.
@@ -1021,12 +1016,12 @@ async function renamePlayer(code, playerId, currentName) {
   }
 }
 
-// mode: 'admin-view' | 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'night-police-vote' | 'decoy-vote' | 'plain'
+// mode: 'day-vote' | 'night-mafia-vote' | 'night-doctor-vote' | 'night-police-vote' | 'decoy-vote' | 'plain'
 function renderPlayerGrid(players, opts) {
-  const { mode, myId, selectedId, candidates, compact } = opts;
-  const showRoleReveal = mode === "admin-view" || mode === "plain-with-reveal";
+  const { mode, myId, selectedId, candidates } = opts;
+  const showRoleReveal = mode === "plain-with-reveal";
 
-  return `<div class="grid${compact ? " compact" : ""}">
+  return `<div class="grid">
     ${players
       .map((p) => {
         const isDead = !p.alive;
@@ -1056,8 +1051,10 @@ function renderPlayerGrid(players, opts) {
 
         return `<div class="${cardClass}" data-player-id="${p.id}">
           <span class="avatar">${isDead ? "💀" : "🙂"}</span>
-          <div class="pname">${escapeHtml(p.name)}${p.id === myId ? " (나)" : ""}</div>
-          ${revealTag}
+          <div class="pc-text">
+            <div class="pname">${escapeHtml(p.name)}${p.id === myId ? " (나)" : ""}</div>
+            ${revealTag}
+          </div>
         </div>`;
       })
       .join("")}
@@ -1286,6 +1283,30 @@ function renderAdminLiveGrid(game, players) {
             <span class="${roleTagClass}">${roleLabel(p.role)}</span>
           </div>
           <div class="avc-footer">${footer}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `<div class="admin-live-grid">${cards}</div>`;
+}
+
+// 게임 완전 종료 화면에서 쓰는 참가자 명단: 실시간 득표 표시 없이, 역할과
+// 생존/탈락 여부만 관리자 실시간 그리드와 같은 모양(7열, 아이콘 왼쪽)으로 보여준다.
+function renderEndedGrid(players) {
+  const cards = players
+    .map((p) => {
+      const isDead = !p.alive;
+      const icon = isDead ? "💀" : adminRoleIcon(p.role);
+      const cardClass = `admin-vote-card${isDead ? " dead" : ""}`;
+      return `
+        <div class="${cardClass}">
+          <span class="avatar">${icon}</span>
+          <div class="avc-text">
+            <div class="pname">${escapeHtml(p.name)}</div>
+            <span class="role-tag ${p.role}">${roleLabel(p.role)}</span>
+          </div>
+          <div class="avc-footer">${isDead ? "탈락" : "생존"}</div>
         </div>
       `;
     })
@@ -1721,28 +1742,24 @@ function renderPlayer(code, playerId, game, players, me) {
   if (game.status === "ended") {
     const isCitizen = game.winner === "citizen";
     const revealBox = game.winnerTrigger === "night" ? renderNightRevealBox(game) : renderDayRevealBox(game);
-    // 관리자 종료 화면과 같은 좌/우 분할: 왼쪽엔 결과 발표, 오른쪽엔 참가자 명단을
-    // 사각 박스(3열)로 보여준다.
+    // 관리자 종료 화면과 같은 레이아웃: 결과 발표와 버튼을 위쪽에 한 줄로 나란히
+    // 배치하고, 그 아래 7열 참가자 명단(역할/생존여부 포함)을 보여준다.
     el.innerHTML = `
       ${renderCodeChip(game.code)}
-      <div class="admin-split admin-split-ended">
-        <div class="admin-split-left">
-          ${revealBox}
-          <div class="card center-text">
-            <div class="result-icon-row">
-              <span class="icon">${isCitizen ? "🎉" : "🔪"}</span>
-              <div class="result-icon-text">
-                <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
-                <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
-              </div>
+      <div class="ended-top-row">
+        ${revealBox}
+        <div class="card center-text">
+          <div class="result-icon-row">
+            <span class="icon">${isCitizen ? "🎉" : "🔪"}</span>
+            <div class="result-icon-text">
+              <h2 class="${isCitizen ? "winner-citizen" : "winner-mafia"}">${isCitizen ? "시민 승리!" : "마피아 승리!"}</h2>
+              <p class="sub-text">당신의 역할은 <strong>${roleLabel(me.role)}</strong> 였습니다.</p>
             </div>
-            <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
           </div>
-        </div>
-        <div class="admin-split-right">
-          ${renderPlayerGrid(players, { mode: "admin-view", compact: true })}
+          <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
         </div>
       </div>
+      ${renderEndedGrid(players)}
     `;
     $("btnJoinNewGame").addEventListener("click", () => {
       if (playerUnsubGame) playerUnsubGame();
