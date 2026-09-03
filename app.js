@@ -1846,10 +1846,13 @@ function renderPlayerAction(code, playerId, game, players, me) {
       return `
         ${
           isTie
-            ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
-            : `<p class="center-text sub-text">마피아로 의심되는 사람이 있으면 투표해주세요. 모든 사람이 투표하면 결과가 나옵니다.</p>`
+            ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
+               <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명]</p>`
+            : `<div class="vote-status-row sub-text">
+                <span>마피아로 의심되는 사람이 있으면 투표해주세요. 모든 사람이 투표하면 결과가 나옵니다.</span>
+                <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명]</span>
+              </div>`
         }
-        <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명</p>
         ${renderPlayerGrid(gridPlayers, {
           mode: "day-vote",
           myId: playerId,
@@ -1877,10 +1880,13 @@ function renderPlayerAction(code, playerId, game, players, me) {
         return `
           ${
             isTie
-              ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>`
-              : `<p class="center-text sub-text">제거할 시민을 선택하세요.</p>`
+              ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
+                 <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
+              : `<div class="vote-status-row sub-text">
+                  <span>제거할 시민을 선택하세요.</span>
+                  <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명 (마피아)]</span>
+                </div>`
           }
-          <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명 (마피아)</p>
           ${renderPlayerGrid(gridPlayers, {
             mode: "night-mafia-vote",
             myId: playerId,
@@ -1913,8 +1919,10 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const votedCount = Object.keys(game.doctorVotes || {}).length;
         const eligibleCount = aliveList(players).filter((p) => p.role === "doctor").length;
         return `
-          <p class="center-text sub-text">누구를 살릴지 선택하세요.</p>
-          <p class="center-text sub-text">투표 현황: ${votedCount} / ${eligibleCount}명 (의사)</p>
+          <div class="vote-status-row sub-text">
+            <span>누구를 살릴지 선택하세요.</span>
+            <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명 (의사)]</span>
+          </div>
           ${renderPlayerGrid(players, {
             mode: "night-doctor-vote",
             myId: playerId,
@@ -1958,8 +1966,10 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const votedCount = Object.keys(game.policeChecks || {}).length;
         const eligibleCount = aliveList(players).filter((p) => p.role === "police").length;
         return `
-          <p class="center-text sub-text">조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</p>
-          <p class="center-text sub-text">조사 현황: ${votedCount} / ${eligibleCount}명 (경찰)</p>
+          <div class="vote-status-row sub-text">
+            <span>조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</span>
+            <span class="vote-status-tag">[조사현황: ${votedCount} / ${eligibleCount}명 (경찰)]</span>
+          </div>
           ${renderPlayerGrid(players, {
             mode: "night-police-vote",
             myId: playerId,

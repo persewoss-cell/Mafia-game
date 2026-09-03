@@ -648,6 +648,20 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
 .vote-status-box { margin-bottom: 16px; }
 .vote-status-box .sub-text { margin: 4px 0; }
 
+/* 안내 문구와 투표/조사 현황을 두 줄로 나누지 않고 한 줄에 좌우로 배치한다. */
+.vote-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.vote-status-row .vote-status-tag {
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* 관리자 실시간 참가자 그리드: 한 줄에 7개, 아이콘 왼쪽 + 이름/역할 오른쪽,
    하단에 득표 현황(또는 "생존"). 밤에는 카드 배경으로 최다 득표(빨강)/의사
    선택(초록, 우선)을 표시하고, 경찰이 조사한 대상은 역할 글씨를 진한 노랑으로 표시한다. */
