@@ -249,6 +249,7 @@ body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
 .night-status-panel {
   border: 2px solid #7a54d4;
 }
+.night-status-panel h3 { text-align: center; }
 .night-status-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -525,7 +526,7 @@ body.theme-night .phase-banner {
   font-weight: 700;
 }
 .role-box .icon { font-size: 2.8rem; flex-shrink: 0; }
-.role-box-text { flex: 1; min-width: 0; }
+.role-box-text { flex: 0 1 auto; min-width: 0; }
 .role-box.role-mafia { background: #fdeaea; color: var(--mafia); }
 .role-box.role-citizen { background: #e9f1ff; color: var(--citizen); }
 .role-box.role-doctor { background: #e6f8f1; color: var(--doctor); }
@@ -631,7 +632,7 @@ body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
 }
 body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
 .waiting-box .icon { font-size: 2.1rem; flex-shrink: 0; }
-.waiting-box-text { flex: 1; min-width: 0; }
+.waiting-box-text { flex: 0 1 auto; min-width: 0; }
 .waiting-box-text p { margin: 2px 0; }
 
 .admin-panel {
@@ -641,6 +642,7 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
   margin-top: 8px;
 }
 .admin-panel .countdown-banner { margin-bottom: 10px; }
+.admin-panel .big-btn { padding: 14px 22px; margin-bottom: 0; }
 
 .admin-action-row {
   margin: 16px 0;
@@ -776,7 +778,7 @@ body.theme-night .admin-vote-card.vote-lead-yellow-light { background: #4a3d1e; 
   margin-bottom: 12px;
 }
 .result-icon-row .icon { font-size: 2.6rem; flex-shrink: 0; }
-.result-icon-row .result-icon-text { flex: 1; min-width: 0; }
+.result-icon-row .result-icon-text { flex: 0 1 auto; min-width: 0; }
 .result-icon-row h2 { margin: 0 0 4px; }
 .result-icon-row .sub-text { margin: 0; }
 
