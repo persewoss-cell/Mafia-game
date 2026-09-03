@@ -774,10 +774,10 @@ function renderAdmin(code, game, players) {
       ${renderCodeChip(game.code)}
       <div class="ended-top-row">
         ${renderWinnerModalInline(game)}
-        <div class="card center-text">
+        <div class="card center-text ended-btn-card">
           <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
         </div>
-        <div class="card center-text">
+        <div class="card center-text ended-btn-card">
           <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
         </div>
       </div>
@@ -1759,7 +1759,7 @@ function renderPlayer(code, playerId, game, players, me) {
             </div>
           </div>
         </div>
-        <div class="card center-text">
+        <div class="card center-text ended-btn-card">
           <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
         </div>
       </div>
