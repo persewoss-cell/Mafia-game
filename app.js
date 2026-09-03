@@ -1762,7 +1762,7 @@ function renderPlayer(code, playerId, game, players, me) {
           </div>
         </div>
         <div class="card center-text ended-btn-card">
-          <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
+          <button class="big-btn secondary" id="btnPlayerEndToHome">🏠 홈으로</button>
         </div>
         <div class="card center-text ended-btn-card">
           <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
@@ -1770,7 +1770,7 @@ function renderPlayer(code, playerId, game, players, me) {
       </div>
       ${renderEndedGrid(players)}
     `;
-    $("btnEndToHome").addEventListener("click", () => {
+    $("btnPlayerEndToHome").addEventListener("click", () => {
       if (playerUnsubGame) playerUnsubGame();
       if (playerUnsubPlayers) playerUnsubPlayers();
       if (playerTickInterval) clearInterval(playerTickInterval);
