@@ -1236,11 +1236,15 @@ function renderAdminLiveGrid(game, players) {
 
   let redIds = new Set();
   let greenIds = new Set();
-  let yellowIds = new Set();
+  let yellowDarkIds = new Set();
+  let yellowLightIds = new Set();
   if (game.phase === "night") {
     redIds = new Set(topVoted(tally(game.nightVotes || {}, game.nightCandidates || alive.map((p) => p.id))));
     greenIds = new Set(topVoted(tally(game.doctorVotes || {}, alive.map((p) => p.id))));
-    yellowIds = new Set(Object.values(game.policeChecks || {}).map((c) => c.targetId));
+    Object.values(game.policeChecks || {}).forEach((c) => {
+      if (c.success) yellowDarkIds.add(c.targetId);
+      else yellowLightIds.add(c.targetId);
+    });
   } else if (game.phase === "day") {
     redIds = new Set(topVoted(tally(game.votes || {}, game.voteCandidates || alive.map((p) => p.id))));
   }
@@ -1265,9 +1269,13 @@ function renderAdminLiveGrid(game, players) {
         cardClass += " vote-lead-green";
       } else if (redIds.has(p.id)) {
         cardClass += " vote-lead-red";
+      } else if (yellowDarkIds.has(p.id)) {
+        cardClass += " vote-lead-yellow-dark";
+      } else if (yellowLightIds.has(p.id)) {
+        cardClass += " vote-lead-yellow-light";
       }
 
-      const roleTagClass = `role-tag ${p.role}${!isDead && yellowIds.has(p.id) ? " police-marked" : ""}`;
+      const roleTagClass = `role-tag ${p.role}`;
       const icon = isDead ? "💀" : adminRoleIcon(p.role);
 
       return `
@@ -1299,7 +1307,6 @@ function renderAdminControlPanel(code, game, players) {
     }
     if (game.daySubphase === "reveal") {
       return `<div class="admin-panel">
-        <h3>진행 조작</h3>
         ${renderCountdownText(game.revealDeadline, "🌙 밤이 됩니다")}
         <button class="big-btn" id="btnGoNight">🌙 지금 바로 밤으로 진행하기</button>
       </div>`;
@@ -1319,7 +1326,6 @@ function renderAdminControlPanel(code, game, players) {
       const nextIsDoctor = aliveDoctors.length > 0;
       const nextLabel = nextIsDoctor ? "💉 의사에게 넘어갑니다" : "🔍 경찰에게 넘어갑니다";
       return `<div class="admin-panel">
-        <h3>진행 조작</h3>
         ${renderCountdownText(game.revealDeadline, nextLabel)}
         <button class="big-btn" id="btnGoDoctor">${nextIsDoctor ? "💉" : "🔍"} 지금 바로 넘기기</button>
       </div>`;
@@ -1339,7 +1345,6 @@ function renderAdminControlPanel(code, game, players) {
     }
     if (game.nightSubphase === "reveal") {
       return `<div class="admin-panel">
-        <h3>진행 조작</h3>
         ${renderCountdownText(game.revealDeadline, "☀️ 낮이 됩니다")}
         <button class="big-btn" id="btnGoDay">☀️ 지금 바로 낮으로 진행하기</button>
       </div>`;

@@ -515,10 +515,11 @@ body.theme-night .phase-banner {
 .role-box {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 16px;
   border-radius: var(--radius);
   padding: 16px 20px;
-  text-align: left;
+  text-align: center;
   margin-bottom: 18px;
   box-shadow: var(--shadow);
   font-weight: 700;
@@ -620,8 +621,9 @@ body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
 .waiting-box {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
-  text-align: left;
+  text-align: center;
   padding: 14px 18px;
   border-radius: var(--radius);
   background: rgba(0,0,0,0.04);
@@ -635,13 +637,10 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
 .admin-panel {
   border: 2px dashed #7a54d4;
   border-radius: var(--radius);
-  padding: 18px;
-  margin-top: 10px;
+  padding: 10px 18px;
+  margin-top: 8px;
 }
-.admin-panel h3 {
-  margin-top: 0;
-  color: #7a54d4;
-}
+.admin-panel .countdown-banner { margin-bottom: 10px; }
 
 .admin-action-row {
   margin: 16px 0;
@@ -702,11 +701,12 @@ body.theme-night .admin-vote-card.dead { background: #3a3a4a; color: #cfcfe0; }
 
 .admin-vote-card.vote-lead-red { background: #ffd9d9; border-color: var(--mafia); }
 .admin-vote-card.vote-lead-green { background: #d3f5e4; border-color: var(--doctor); }
+.admin-vote-card.vote-lead-yellow-dark { background: #f5d76e; border-color: var(--police); }
+.admin-vote-card.vote-lead-yellow-light { background: #fbf1c7; border-color: var(--police); }
 body.theme-night .admin-vote-card.vote-lead-red { background: #5c2a2a; }
 body.theme-night .admin-vote-card.vote-lead-green { background: #1e4a38; }
-
-.admin-vote-card .role-tag.police-marked { color: #a67c00; font-weight: 800; }
-body.theme-night .admin-vote-card .role-tag.police-marked { color: #f0c04b; }
+body.theme-night .admin-vote-card.vote-lead-yellow-dark { background: #7a5c14; }
+body.theme-night .admin-vote-card.vote-lead-yellow-light { background: #4a3d1e; }
 
 @media (max-width: 760px) {
   .admin-live-grid { grid-template-columns: repeat(5, 1fr); }
@@ -770,8 +770,9 @@ body.theme-night .admin-vote-card .role-tag.police-marked { color: #f0c04b; }
 .result-icon-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
-  text-align: left;
+  text-align: center;
   margin-bottom: 12px;
 }
 .result-icon-row .icon { font-size: 2.6rem; flex-shrink: 0; }
