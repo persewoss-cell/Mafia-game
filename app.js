@@ -219,10 +219,12 @@ async function fetchRoomsList(limit = 10, statuses) {
   return rooms;
 }
 
-// 참가 화면용: 대기실뿐 아니라 이미 진행 중인 방도 함께 보여준다. 중간에 튕긴
-// 참가자가 코드를 몰라도 쉽게 다시 들어올 수 있도록 하기 위함이다.
+// 참가 화면용: 대기실·진행 중인 방뿐 아니라 아직 삭제되지 않고 남아있는
+// 종료된(ended) 방도 함께 보여준다. 중간에 튕긴 참가자가 코드를 몰라도 다시
+// 들어와서 결과 화면을 볼 수 있도록 하기 위함이다. 강제 종료(terminated)된
+// 방은 들어가도 바로 홈으로 돌려보내지므로 목록에서 제외한다.
 function fetchJoinableRooms(limit = 10) {
-  return fetchRoomsList(limit, ["lobby", "playing"]);
+  return fetchRoomsList(limit, ["lobby", "playing", "ended"]);
 }
 
 // 관리자 화면용: 대기실/진행중/종료/강제종료 등 상태와 상관없이 만들어진 방 전체를 보여준다.
@@ -1758,11 +1760,21 @@ function renderPlayer(code, playerId, game, players, me) {
           </div>
         </div>
         <div class="card center-text ended-btn-card">
+          <button class="big-btn secondary" id="btnEndToHome">🏠 홈으로</button>
+        </div>
+        <div class="card center-text ended-btn-card">
           <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
         </div>
       </div>
       ${renderEndedGrid(players)}
     `;
+    $("btnEndToHome").addEventListener("click", () => {
+      if (playerUnsubGame) playerUnsubGame();
+      if (playerUnsubPlayers) playerUnsubPlayers();
+      if (playerTickInterval) clearInterval(playerTickInterval);
+      clearSession();
+      showScreen("screen-home");
+    });
     $("btnJoinNewGame").addEventListener("click", () => {
       if (playerUnsubGame) playerUnsubGame();
       if (playerUnsubPlayers) playerUnsubPlayers();
