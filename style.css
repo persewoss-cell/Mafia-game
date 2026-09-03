@@ -330,44 +330,27 @@ input[type="text"]:focus, input[type="number"]:focus {
 .badge.police { background: var(--police); }
 .badge.admin { background: #7a54d4; }
 
+/* 인원 현황 5개를 좌우로 꽉 채우는 5등분 그리드. 라벨+숫자를 한 줄에 붙여서
+   ("총인원 7") 세로 높이를 줄인다. 아주 좁은 화면에서는 3열로 줄어든다. */
 .counts-row {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
   margin: 16px 0;
 }
 .count-pill {
   background: rgba(0,0,0,0.05);
   border-radius: 14px;
-  padding: 10px 16px;
+  padding: 10px 4px;
   text-align: center;
-  min-width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 body.theme-night .count-pill { background: rgba(255,255,255,0.08); }
-.count-pill .num { font-size: 1.6rem; font-weight: 800; display: block; }
-.count-pill .label { font-size: 0.8rem; color: var(--text-sub); }
-
-/* 관리자 화면 좌/우 분할에서는 칸이 좁아지므로, 인원 현황 5개 박스가 5등분된
-   칸을 딱 채우도록 그리드로 바꾸고, 그에 맞춰 세로 크기·글자 크기도 키운다.
-   (flex로 두면 텍스트 길이에 따라 박스마다 폭이 달라지므로 grid로 통일한다.)
-   화면이 좁아 위아래로 쌓이면(760px 이하) 원래의 flex 레이아웃으로 되돌린다. */
-.admin-split-left .counts-row {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-.admin-split-left .count-pill {
-  min-width: 0;
-  padding: 14px 4px;
-}
-.admin-split-left .count-pill .num { font-size: 1.5rem; }
-.admin-split-left .count-pill .label { font-size: 0.72rem; white-space: normal; }
-@media (max-width: 760px) {
-  .admin-split-left .counts-row { display: flex; flex-wrap: wrap; }
-  .admin-split-left .count-pill { min-width: 90px; padding: 10px 16px; }
-  .admin-split-left .count-pill .num { font-size: 1.6rem; }
-  .admin-split-left .count-pill .label { font-size: 0.8rem; }
+.count-pill .label { font-size: 0.75rem; color: var(--text-sub); margin-right: 4px; }
+.count-pill .num { font-size: 1.15rem; font-weight: 800; }
+@media (max-width: 480px) {
+  .counts-row { grid-template-columns: repeat(3, 1fr); }
 }
 
 .player-list {
@@ -660,6 +643,81 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
   color: #7a54d4;
 }
 
+.admin-action-row {
+  margin: 16px 0;
+}
+
+.vote-status-box { margin-bottom: 16px; }
+.vote-status-box .sub-text { margin: 4px 0; }
+
+/* 관리자 실시간 참가자 그리드: 한 줄에 7개, 아이콘 왼쪽 + 이름/역할 오른쪽,
+   하단에 득표 현황(또는 "생존"). 밤에는 카드 배경으로 최다 득표(빨강)/의사
+   선택(초록, 우선)을 표시하고, 경찰이 조사한 대상은 역할 글씨를 진한 노랑으로 표시한다. */
+.admin-live-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.admin-vote-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 6px 6px 20px;
+  position: relative;
+  box-shadow: var(--shadow);
+  border: 2px solid transparent;
+  min-height: 54px;
+  overflow: hidden;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.admin-vote-card .avatar { font-size: 1.4rem; flex-shrink: 0; }
+.admin-vote-card .avc-text { flex: 1; min-width: 0; }
+.admin-vote-card .pname {
+  font-weight: 700;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-vote-card .role-tag { font-size: 0.6rem; display: block; margin-top: 1px; }
+.admin-vote-card .avc-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 0;
+  background: rgba(0,0,0,0.06);
+}
+body.theme-night .admin-vote-card { background: #262a5c; color: #f0eefc; }
+body.theme-night .admin-vote-card .avc-footer { background: rgba(255,255,255,0.12); }
+
+.admin-vote-card.dead { background: var(--card-bg-dead); opacity: 0.55; }
+body.theme-night .admin-vote-card.dead { background: #3a3a4a; color: #cfcfe0; }
+
+.admin-vote-card.vote-lead-red { background: #ffd9d9; border-color: var(--mafia); }
+.admin-vote-card.vote-lead-green { background: #d3f5e4; border-color: var(--doctor); }
+body.theme-night .admin-vote-card.vote-lead-red { background: #5c2a2a; }
+body.theme-night .admin-vote-card.vote-lead-green { background: #1e4a38; }
+
+.admin-vote-card .role-tag.police-marked { color: #a67c00; font-weight: 800; }
+body.theme-night .admin-vote-card .role-tag.police-marked { color: #f0c04b; }
+
+@media (max-width: 760px) {
+  .admin-live-grid { grid-template-columns: repeat(5, 1fr); }
+}
+@media (max-width: 520px) {
+  .admin-live-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 380px) {
+  .admin-live-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
 .admin-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -720,15 +778,6 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
 .result-icon-row .result-icon-text { flex: 1; min-width: 0; }
 .result-icon-row h2 { margin: 0 0 4px; }
 .result-icon-row .sub-text { margin: 0; }
-
-.tally-list { list-style: none; padding: 0; margin: 10px 0; }
-.tally-list li {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 4px;
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  font-weight: 600;
-}
 
 .footer-note {
   text-align: center;

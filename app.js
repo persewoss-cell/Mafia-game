@@ -823,25 +823,19 @@ function renderAdmin(code, game, players) {
       : game.phase === "night" && game.nightSubphase === "reveal"
       ? renderNightRevealBox(game, players, false)
       : "";
-  // 이름+역할은 위쪽 참가자 박스(renderPlayerGrid의 admin-view 모드)에 이미 뜨므로,
-  // 여기서는 목록 형태로 중복해서 보여주지 않는다.
-  // "밤 진행 상황"은 코드/밤 배너처럼 좌우 전체 폭으로 보여주고, "진행 조작" 패널만
-  // 오른쪽 칸으로 빼서 태블릿 화면에서 스크롤 없이 한눈에 보이도록 좌/우로 나눈다
-  // (좁은 화면에서는 CSS가 자동으로 위아래로 쌓는다).
+  // 화면 전체 폭을 쓰는 세로 배치: 코드/밤 배너 → 밤 진행 상황 → 인원 현황 →
+  // 선택 현황(+가짜투표 현황) → 결과 발표 박스 → 실시간 참가자 그리드(득표/색상
+  // 표시 포함) → 진행 조작 버튼. 이름+역할은 참가자 그리드 카드에 이미 나오므로
+  // 별도 목록으로 중복해서 보여주지 않는다.
   el.innerHTML = `
     ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
     ${renderNightStatusPanel(game, players)}
-    <div class="admin-split">
-      <div class="admin-split-left">
-        ${renderCountsRow(game, players)}
-        ${liveRevealBox}
-        ${renderPlayerGrid(players, { mode: "admin-view", compact: true })}
-      </div>
-      <div class="admin-split-right">
-        ${renderAdminControlPanel(code, game, players)}
-      </div>
-    </div>
+    ${renderCountsRow(game, players)}
+    ${renderAdminStatusBox(game, players)}
+    ${liveRevealBox}
+    ${renderAdminLiveGrid(game, players)}
+    ${renderAdminControlPanel(code, game, players)}
   `;
   wireAdminControlPanel(code, game, players);
 }
@@ -963,11 +957,11 @@ function renderCountsRow(game, players) {
   const alivePolice = countByRole(players, "police");
   return `
     <div class="counts-row">
-      <div class="count-pill"><span class="num">${total}</span><span class="label">총 인원</span></div>
-      <div class="count-pill"><span class="num">${aliveMafia}</span><span class="label">생존 마피아</span></div>
-      <div class="count-pill"><span class="num">${aliveCitizen}</span><span class="label">생존 시민</span></div>
-      <div class="count-pill"><span class="num">${aliveDoctor}</span><span class="label">생존 의사</span></div>
-      <div class="count-pill"><span class="num">${alivePolice}</span><span class="label">생존 경찰</span></div>
+      <div class="count-pill"><span class="label">총인원</span><span class="num">${total}</span></div>
+      <div class="count-pill"><span class="label">생존마피아</span><span class="num">${aliveMafia}</span></div>
+      <div class="count-pill"><span class="label">생존시민</span><span class="num">${aliveCitizen}</span></div>
+      <div class="count-pill"><span class="label">생존의사</span><span class="num">${aliveDoctor}</span></div>
+      <div class="count-pill"><span class="label">생존경찰</span><span class="num">${alivePolice}</span></div>
     </div>
   `;
 }
@@ -1089,15 +1083,6 @@ function topVoted(counts) {
   return Object.keys(counts).filter((k) => counts[k] === max);
 }
 
-function renderTallyList(counts, players) {
-  const nameOf = (id) => players.find((p) => p.id === id)?.name || "?";
-  return `<ul class="tally-list">
-    ${Object.entries(counts)
-      .map(([id, n]) => `<li><span>${escapeHtml(nameOf(id))}</span><span>${n}표</span></li>`)
-      .join("")}
-  </ul>`;
-}
-
 // 관리자 패널에 아직 투표/선택하지 않은 사람 명단을 ", 미투표자: A, B" 형태로 덧붙인다.
 function renderNonVoterList(eligiblePlayers, responseMap, label) {
   const respondedIds = new Set(Object.keys(responseMap || {}));
@@ -1178,17 +1163,138 @@ function renderNightStatusPanel(game, players) {
   `;
 }
 
+// 관리자 실시간 화면: 낮/밤 각 단계의 "선택 현황"과 "가짜 투표 현황"을 하나의
+// 좌우로 긴 박스에 모아 보여준다. 투표할 것이 없는 대기 화면에서는 빈 문자열을 반환한다.
+function renderAdminStatusBox(game, players) {
+  const alivePlayers = aliveList(players);
+  const lines = [];
+
+  if (game.phase === "day" && (game.daySubphase === "vote" || game.daySubphase === "revote")) {
+    lines.push(renderVoteStatusLine("투표 현황", alivePlayers, game.votes, "미투표자"));
+  } else if (game.phase === "night") {
+    const aliveMafia = alivePlayers.filter((p) => p.role === "mafia");
+    const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
+    const alivePolice = alivePlayers.filter((p) => p.role === "police");
+
+    if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
+      lines.push(renderVoteStatusLine("마피아 투표 현황", aliveMafia, game.nightVotes, "미투표자"));
+      lines.push(renderDecoyStatusLine(alivePlayers, "mafia", game.decoyVotes));
+    } else if (game.nightSubphase === "doctor_vote") {
+      lines.push(renderVoteStatusLine("의사 선택 현황", aliveDoctors, game.doctorVotes, "미선택자"));
+      lines.push(renderDecoyStatusLine(alivePlayers, "doctor", game.decoyVotes));
+    } else if (game.nightSubphase === "police_vote") {
+      lines.push(renderVoteStatusLine("경찰 조사 현황", alivePolice, game.policeChecks, "미선택자"));
+      lines.push(renderDecoyStatusLine(alivePlayers, "police", game.decoyVotes));
+    }
+  }
+
+  const content = lines.filter(Boolean).join("");
+  if (!content) return "";
+  return `<div class="panel vote-status-box">${content}</div>`;
+}
+
+// 참가자 아이콘: 관리자 화면에서는 항상 역할을 알 수 있으므로, 역할별로 다르지만
+// 비슷한 느낌의 아이콘을 보여준다.
+function adminRoleIcon(role) {
+  if (role === "mafia") return "🥷";
+  if (role === "doctor") return "🧑‍⚕️";
+  if (role === "police") return "👮";
+  return "🙂";
+}
+
+// 지금 단계에서 "몇 표 받았는지" 계산할 때 쓸 투표 데이터/후보 목록을 정해준다.
+function currentVoteContext(game, players) {
+  const alive = aliveList(players);
+  if (game.phase === "day") {
+    return { voteMap: game.votes, candidates: game.voteCandidates || alive.map((p) => p.id) };
+  }
+  if (game.phase === "night") {
+    if (game.nightSubphase === "doctor_vote") {
+      return { voteMap: game.doctorVotes, candidates: alive.map((p) => p.id) };
+    }
+    if (game.nightSubphase === "police_vote") {
+      const policeVoteMap = {};
+      Object.entries(game.policeChecks || {}).forEach(([voterId, check]) => {
+        policeVoteMap[voterId] = check.targetId;
+      });
+      return { voteMap: policeVoteMap, candidates: game.policeCandidates || alive.map((p) => p.id) };
+    }
+    // mafia_vote/mafia_revote/mafia_done/reveal: 마피아 투표 결과를 계속 보여준다.
+    return { voteMap: game.nightVotes, candidates: game.nightCandidates || alive.map((p) => p.id) };
+  }
+  return { voteMap: {}, candidates: alive.map((p) => p.id) };
+}
+
+// 관리자 화면에서 낮/밤 내내 보여주는 실시간 참가자 그리드. 한 줄에 7개씩,
+// 아이콘은 왼쪽/이름은 오른쪽에 두고, 하단에는 득표수(후보가 아니면 "생존")를 보여준다.
+// 밤에는 마피아의 최다 득표 대상을 연한 빨강, 의사가 살리려는 대상을 연한 초록으로
+// (초록이 우선) 카드 배경에 표시하고, 경찰이 조사한 대상은 역할 글씨를 진한 노랑으로
+// 표시한다. 이 색 표시는 그 단계가 지나도 밤이 끝날 때까지 계속 남아있다.
+function renderAdminLiveGrid(game, players) {
+  const alive = aliveList(players);
+  const { voteMap, candidates } = currentVoteContext(game, players);
+
+  let redIds = new Set();
+  let greenIds = new Set();
+  let yellowIds = new Set();
+  if (game.phase === "night") {
+    redIds = new Set(topVoted(tally(game.nightVotes || {}, game.nightCandidates || alive.map((p) => p.id))));
+    greenIds = new Set(topVoted(tally(game.doctorVotes || {}, alive.map((p) => p.id))));
+    yellowIds = new Set(Object.values(game.policeChecks || {}).map((c) => c.targetId));
+  } else if (game.phase === "day") {
+    redIds = new Set(topVoted(tally(game.votes || {}, game.voteCandidates || alive.map((p) => p.id))));
+  }
+
+  const cards = players
+    .map((p) => {
+      const isDead = !p.alive;
+      let footer;
+      if (isDead) {
+        footer = "탈락";
+      } else if (candidates && !candidates.includes(p.id)) {
+        footer = "생존";
+      } else {
+        const n = Object.values(voteMap || {}).filter((t) => t === p.id).length;
+        footer = `${n}표`;
+      }
+
+      let cardClass = "admin-vote-card";
+      if (isDead) {
+        cardClass += " dead";
+      } else if (greenIds.has(p.id)) {
+        cardClass += " vote-lead-green";
+      } else if (redIds.has(p.id)) {
+        cardClass += " vote-lead-red";
+      }
+
+      const roleTagClass = `role-tag ${p.role}${!isDead && yellowIds.has(p.id) ? " police-marked" : ""}`;
+      const icon = isDead ? "💀" : adminRoleIcon(p.role);
+
+      return `
+        <div class="${cardClass}">
+          <span class="avatar">${icon}</span>
+          <div class="avc-text">
+            <div class="pname">${escapeHtml(p.name)}</div>
+            <span class="${roleTagClass}">${roleLabel(p.role)}</span>
+          </div>
+          <div class="avc-footer">${footer}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `<div class="admin-live-grid">${cards}</div>`;
+}
+
 function renderAdminControlPanel(code, game, players) {
   const alivePlayers = aliveList(players);
 
   if (game.phase === "day") {
+    // 투표 중에는 위쪽에 인원 현황/투표 현황 박스와 참가자 그리드가 이미 실시간으로
+    // 보여주므로, 여기서는 수동 마감 버튼 하나만 가운데에 둔다(점선 박스 없이).
     if (game.daySubphase === "vote" || game.daySubphase === "revote") {
-      const counts = tally(game.votes, game.voteCandidates);
-      return `<div class="admin-panel">
-        <h3>진행 조작 ${game.voteRound > 1 ? `(재투표 ${game.voteRound}회차)` : ""}</h3>
-        ${renderVoteStatusLine("투표 현황", alivePlayers, game.votes, "미투표자")}
-        ${renderTallyList(counts, players)}
-        <button class="big-btn" id="btnCloseVote">✅ 투표 마감하고 결과 확인</button>
+      return `<div class="center-text admin-action-row">
+        <button class="big-btn" id="btnCloseVote">✅ 지금 바로 투표 마감하고 결과 확인</button>
       </div>`;
     }
     if (game.daySubphase === "reveal") {
@@ -1201,18 +1307,12 @@ function renderAdminControlPanel(code, game, players) {
   }
 
   if (game.phase === "night") {
-    const aliveMafia = alivePlayers.filter((p) => p.role === "mafia");
     const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
     const alivePolice = alivePlayers.filter((p) => p.role === "police");
 
     if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
-      const counts = tally(game.nightVotes, game.nightCandidates);
-      return `<div class="admin-panel">
-        <h3>진행 조작 ${game.nightRound > 1 ? `(재투표 ${game.nightRound}회차)` : ""}</h3>
-        ${renderVoteStatusLine("마피아 투표 현황", aliveMafia, game.nightVotes, "미투표자")}
-        ${renderTallyList(counts, players)}
-        ${renderDecoyStatusLine(alivePlayers, "mafia", game.decoyVotes)}
-        <button class="big-btn" id="btnCloseMafiaVote">✅ 마피아 투표 마감</button>
+      return `<div class="center-text admin-action-row">
+        <button class="big-btn" id="btnCloseMafiaVote">✅ 지금 바로 마피아 투표 마감하고 결과 확인</button>
       </div>`;
     }
     if (game.nightSubphase === "mafia_done") {
@@ -1225,25 +1325,16 @@ function renderAdminControlPanel(code, game, players) {
       </div>`;
     }
     if (game.nightSubphase === "doctor_vote") {
-      // 누구를 살리려는지는 오른쪽(또는 위쪽)의 "밤 진행 상황" 패널에 이미 실시간으로
-      // 뜨고 있으므로, 여기서는 득표 목록을 따로 보여주지 않는다.
-      return `<div class="admin-panel">
-        <h3>진행 조작</h3>
-        ${renderVoteStatusLine("의사 선택 현황", aliveDoctors, game.doctorVotes, "미선택자")}
-        ${renderDecoyStatusLine(alivePlayers, "doctor", game.decoyVotes)}
-        <button class="big-btn" id="btnCloseDoctorVote">✅ 의사 선택 마감하고 결과 확인</button>
+      return `<div class="center-text admin-action-row">
+        <button class="big-btn" id="btnCloseDoctorVote">✅ 지금 바로 의사 선택 마감하고 결과 확인</button>
       </div>`;
     }
     if (game.nightSubphase === "police_vote") {
-      // 마찬가지로 조사 대상/결과는 "밤 진행 상황" 패널에 이미 표시되므로 생략한다.
       const votedCount = Object.keys(game.policeChecks || {}).length;
       const allDone = alivePolice.length > 0 && votedCount >= alivePolice.length;
-      return `<div class="admin-panel">
-        <h3>진행 조작</h3>
-        ${renderVoteStatusLine("경찰 조사 현황", alivePolice, game.policeChecks, "미선택자")}
-        ${renderDecoyStatusLine(alivePlayers, "police", game.decoyVotes)}
+      return `<div class="center-text admin-action-row">
         ${allDone ? renderCountdownText(game.revealDeadline, "☀️ 결과 확인으로 넘어갑니다") : ""}
-        <button class="big-btn" id="btnClosePoliceVote">✅ ${allDone ? "지금 바로 결과 확인" : "경찰 조사 마감하고 결과 확인"}</button>
+        <button class="big-btn" id="btnClosePoliceVote">✅ 지금 바로 ${allDone ? "결과 확인" : "경찰 조사 마감하고 결과 확인"}</button>
       </div>`;
     }
     if (game.nightSubphase === "reveal") {
