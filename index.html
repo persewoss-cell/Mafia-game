@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>마피아 게임</title>
-<link rel="stylesheet" href="style.css?v=20260903-6" />
+<link rel="stylesheet" href="style.css?v=20260903-7" />
 </head>
 <body>
 <script>
@@ -23,9 +23,11 @@
   });
 </script>
 <div id="fatalError" class="fatal-error"></div>
-<div class="corner-btn-group">
-  <button id="btnEndGameTopRight" class="corner-btn corner-end-btn" hidden>🛑 게임 종료</button>
-  <button id="btnLeaveTopRight" class="corner-btn corner-leave-btn" hidden>🚪 나가기</button>
+<div class="corner-btn-overlay">
+  <div class="corner-btn-group">
+    <button id="btnEndGameTopRight" class="corner-btn corner-end-btn" hidden>🛑 게임 종료</button>
+    <button id="btnLeaveTopRight" class="corner-btn corner-leave-btn" hidden>🚪 나가기</button>
+  </div>
 </div>
 <div id="app">
 
@@ -173,6 +175,9 @@
 
   <!-- 참가자(플레이어) 화면 -->
   <section id="screen-player" class="screen">
+    <div class="admin-top-row">
+      <div class="admin-mode-badge" id="playerModeBadge">🙋 참가자모드</div>
+    </div>
     <div id="playerContent"></div>
   </section>
 
@@ -193,6 +198,6 @@
   onerror="showFatalError('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 학교/기관 네트워크의 차단 설정을 확인해주세요. (firebase-firestore-compat.js 로드 실패)')"
 ></script>
 <script src="firebase-config.js" onerror="showFatalError('firebase-config.js 파일을 불러오지 못했습니다.')"></script>
-<script src="app.js?v=20260903-6" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
+<script src="app.js?v=20260903-7" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
 </body>
 </html>

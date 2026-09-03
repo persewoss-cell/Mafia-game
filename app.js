@@ -1724,6 +1724,8 @@ function renderPlayerWaiting(msg) {
 function renderPlayer(code, playerId, game, players, me) {
   const el = $("playerContent");
   document.body.classList.toggle("player-dead", !me.alive);
+  const badge = $("playerModeBadge");
+  if (badge) badge.textContent = `🙋 참가자모드[${me.name}]`;
 
   if (game.status === "lobby") {
     el.innerHTML = `
