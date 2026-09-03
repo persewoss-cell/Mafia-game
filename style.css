@@ -564,25 +564,20 @@ body.theme-night .role-box.role-police { background: #3d3016; color: #f0c877; }
 }
 body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
 
-/* 참가자 선택 그리드: 관리자 실시간 명단과 같은 모양으로 한 줄에 7개, 아이콘
-   왼쪽 + 이름/역할 오른쪽으로 배치해 위아래 여백을 줄인다. */
+/* 참가자 선택 그리드: 관리자 실시간 명단과 같은 모양으로 한 줄에 최대 7개,
+   아이콘 왼쪽 + 이름/역할 오른쪽으로 배치해 위아래 여백을 줄인다. grid 대신
+   flex-wrap을 써서, 7명이 안 될 때는 가운데 정렬되고, 7명을 넘겨 다음 줄로
+   넘어간 나머지도 그 줄에서 가운데 정렬되게 한다. */
 .grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
   margin-bottom: 20px;
 }
-@media (max-width: 760px) {
-  .grid { grid-template-columns: repeat(5, 1fr); }
-}
-@media (max-width: 520px) {
-  .grid { grid-template-columns: repeat(4, 1fr); }
-}
-@media (max-width: 380px) {
-  .grid { grid-template-columns: repeat(3, 1fr); }
-}
-
 .player-card {
+  flex: 0 0 calc((100% - 6 * 8px) / 7);
+  max-width: calc((100% - 6 * 8px) / 7);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -595,6 +590,15 @@ body.theme-night .mafia-team-box { background: #4a2323; color: #ff9d9d; }
   border: 2px solid transparent;
   transition: transform 0.08s ease, border-color 0.15s ease;
   min-height: 54px;
+}
+@media (max-width: 760px) {
+  .player-card { flex-basis: calc((100% - 4 * 8px) / 5); max-width: calc((100% - 4 * 8px) / 5); }
+}
+@media (max-width: 520px) {
+  .player-card { flex-basis: calc((100% - 3 * 8px) / 4); max-width: calc((100% - 3 * 8px) / 4); }
+}
+@media (max-width: 380px) {
+  .player-card { flex-basis: calc((100% - 2 * 8px) / 3); max-width: calc((100% - 2 * 8px) / 3); }
 }
 .player-card:active { transform: scale(0.96); }
 .player-card .avatar { font-size: 1.6rem; flex-shrink: 0; }
@@ -677,16 +681,22 @@ body.theme-night .waiting-box { background: rgba(255,255,255,0.06); }
   flex-shrink: 0;
 }
 
-/* 관리자 실시간 참가자 그리드: 한 줄에 7개, 아이콘 왼쪽 + 이름/역할 오른쪽,
-   하단에 득표 현황(또는 "생존"). 밤에는 카드 배경으로 최다 득표(빨강)/의사
-   선택(초록, 우선)을 표시하고, 경찰이 조사한 대상은 역할 글씨를 진한 노랑으로 표시한다. */
+/* 관리자 실시간 참가자 그리드: 한 줄에 최대 7개, 아이콘 왼쪽 + 이름/역할
+   오른쪽, 하단에 득표 현황(또는 "생존"). 밤에는 카드 배경으로 최다 득표
+   (빨강)/의사 선택(초록, 우선)을 표시하고, 경찰이 조사한 대상은 역할 글씨를
+   진한 노랑으로 표시한다. grid 대신 flex-wrap을 써서, 7명이 안 될 때는
+   가운데 정렬되고, 7명을 넘겨 다음 줄로 넘어간 나머지도 그 줄에서 가운데
+   정렬되게 한다. */
 .admin-live-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
   margin-bottom: 16px;
 }
 .admin-vote-card {
+  flex: 0 0 calc((100% - 6 * 8px) / 7);
+  max-width: calc((100% - 6 * 8px) / 7);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -737,13 +747,13 @@ body.theme-night .admin-vote-card.vote-lead-yellow-dark { background: #7a5c14; }
 body.theme-night .admin-vote-card.vote-lead-yellow-light { background: #4a3d1e; }
 
 @media (max-width: 760px) {
-  .admin-live-grid { grid-template-columns: repeat(5, 1fr); }
+  .admin-vote-card { flex-basis: calc((100% - 4 * 8px) / 5); max-width: calc((100% - 4 * 8px) / 5); }
 }
 @media (max-width: 520px) {
-  .admin-live-grid { grid-template-columns: repeat(4, 1fr); }
+  .admin-vote-card { flex-basis: calc((100% - 3 * 8px) / 4); max-width: calc((100% - 3 * 8px) / 4); }
 }
 @media (max-width: 380px) {
-  .admin-live-grid { grid-template-columns: repeat(3, 1fr); }
+  .admin-vote-card { flex-basis: calc((100% - 2 * 8px) / 3); max-width: calc((100% - 2 * 8px) / 3); }
 }
 
 /* 게임 완전 종료 화면: 결과 발표 박스와 버튼 박스를 위쪽에 한 줄로 나란히 두고,
@@ -783,6 +793,13 @@ body.theme-night .admin-vote-card.vote-lead-yellow-light { background: #4a3d1e; 
   .ended-top-row .ended-btn-card { flex: 1; }
   .ended-top-row .ended-btn-card .big-btn { width: 100%; }
 }
+
+.ended-divider {
+  border: none;
+  border-top: 1px solid rgba(0,0,0,0.12);
+  margin: 10px 0;
+}
+body.theme-night .ended-divider { border-top-color: rgba(255,255,255,0.15); }
 
 .modal-overlay {
   position: fixed;

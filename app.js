@@ -783,6 +783,7 @@ function renderAdmin(code, game, players) {
           <button class="big-btn" id="btnEndToNewGame">🆕 새 게임 만들기</button>
         </div>
       </div>
+      <hr class="ended-divider" />
       ${renderEndedGrid(players)}
     `;
 
@@ -1768,6 +1769,7 @@ function renderPlayer(code, playerId, game, players, me) {
           <button class="big-btn" id="btnJoinNewGame">🙋 새 게임 참여하기</button>
         </div>
       </div>
+      <hr class="ended-divider" />
       ${renderEndedGrid(players)}
     `;
     $("btnPlayerEndToHome").addEventListener("click", () => {
