@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>마피아 게임</title>
-<link rel="stylesheet" href="style.css?v=20260904-2" />
+<link rel="stylesheet" href="style.css?v=20260904-3" />
 </head>
 <body>
 <script>
@@ -58,7 +58,9 @@
     <div class="card">
       <h3 style="margin-top:0;">2️⃣ 게임 참가하기</h3>
       <p>친구들은 각자 자기 태블릿이나 휴대폰에서 "게임 참가하기"를 누르고, 코드와 이름을 적으면 방에 들어갈 수 있어요.</p>
-      <p class="sub-text">코드 입력란 위에 현재 열려있는 방 목록(대기실뿐 아니라 진행 중이거나 방금 끝난 방도 포함)이 뜨는데, 누르면 코드가 자동으로 채워져요. 중간에 튕겼거나 게임이 끝난 뒤 결과를 다시 보고 싶으면, 같은 코드에 처음에 썼던 이름을 그대로 입력하면 원래 있던 자리로 다시 들어갈 수 있어요.</p>
+      <p class="sub-text">이름은 별명이 아니라 <strong>반드시 자기 실제 이름</strong>을 적어주세요. 나중에 다시 들어올 때도 이 이름이 그대로 필요해요.</p>
+      <p class="sub-text">코드 입력란 위에 현재 열려있는 방 목록(대기실뿐 아니라 진행 중이거나 방금 끝난 방도 포함)이 뜨는데, 누르면 코드가 자동으로 채워져요.</p>
+      <p class="sub-text"><strong>게임 중간에 튕기거나 게임이 이미 끝난 경우</strong>에도, 이 목록에서 자기가 있던 방을 찾아 누르고 처음에 적었던 자기 이름을 그대로 입력하면 원래 있던 자리로 다시 들어갈 수 있어요.</p>
     </div>
 
     <div class="card">
@@ -67,7 +69,7 @@
       <ul class="howto-role-list">
         <li><span class="badge mafia">🔪 마피아</span> 밤마다 친구를 한 명 골라서 없앨 수 있어요. 마피아끼리는 서로 누가 마피아인지 알아요.</li>
         <li><span class="badge citizen">🙂 시민</span> 낮에 이야기를 나누며 누가 마피아인지 찾아내야 해요.</li>
-        <li><span class="badge doctor">💉 의사</span> 그날 밤 마피아에게 공격받은 친구를 치료해서 살려내요.(경찰은 살릴 수 없어요! 그리고 <strong>자기 자신도 치료할 수 없어요.</strong>)</li>
+        <li><span class="badge doctor">💉 의사</span> 그날 밤 마피아에게 공격받은 친구를 치료해서 살려내요. 단, <strong>경찰과 자기 자신은 치료할 수 없어요.</strong></li>
         <li><span class="badge police">🔍 경찰</span> 밤마다 한 명을 조사해 마피아인지 아닌지 몰래 알아낼 수 있어요. 조사가 실패할 수도 있어요.(50%확률)</li>
       </ul>
       <p class="sub-text">참가 인원수에 따라 역할 수가 자동으로 정해져요. 3~6명은 마피아 1명으로 고정되고, 7명부터는 인원이 늘어날수록 마피아·의사·경찰 수도 함께 늘어나요.</p>
@@ -85,7 +87,7 @@
       <p>낮이 끝나면 밤이 되고, 순서대로 진행돼요.</p>
       <ol style="padding-left:20px; line-height:1.9;">
         <li>🔪 마피아들이 없앨 사람을 한 명 정해요. (마피아가 여러 명이면, 표가 갈려 동률이 나올 때 그 사람들끼리 다시 정해요.)</li>
-        <li>💉 의사가 살릴 사람을 한 명 골라요. (마피아가 노린 사람과 같으면 그 사람은 살아요! 단, <strong>의사는 자기 자신을 선택할 수 없어요.</strong>)</li>
+        <li>💉 의사가 살릴 사람을 한 명 골라요. (마피아가 노린 사람과 같으면 그 사람은 살아요! 단, <strong>경찰과 자기 자신은 선택할 수 없어요.</strong>)</li>
         <li>🔍 경찰이 조사할 사람을 한 명 골라요. 결과는 경찰 본인만 볼 수 있어요.</li>
       </ol>
       <p>모든 순서가 끝나면 아침이 되면서 밤사이 무슨 일이 있었는지 알려줘요.</p>
@@ -219,6 +221,6 @@
   onerror="showFatalError('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 학교/기관 네트워크의 차단 설정을 확인해주세요. (firebase-firestore-compat.js 로드 실패)')"
 ></script>
 <script src="firebase-config.js" onerror="showFatalError('firebase-config.js 파일을 불러오지 못했습니다.')"></script>
-<script src="app.js?v=20260904-2" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
+<script src="app.js?v=20260904-3" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
 </body>
 </html>
