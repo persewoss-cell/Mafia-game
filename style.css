@@ -319,6 +319,10 @@ input[type="text"]:focus, input[type="number"]:focus {
   margin: -6px 0 10px;
 }
 
+/* 게임 방법 안내에서 꼭 기억해야 할 규칙을 눈에 띄게 강조할 때 쓴다. */
+.text-warn { color: var(--mafia); }
+body.theme-night .text-warn { color: #ff9d9d; }
+
 .code-display {
   text-align: center;
   font-size: 3.4rem;
