@@ -1655,9 +1655,14 @@ function renderWinnerModalInline(game) {
 let playerUnsubGame = null;
 let playerUnsubPlayers = null;
 let playerTickInterval = null;
+let playerRerenderFn = null;
+// 내 역할 정보를 옆에서 볼 수 없게 가려두는 기능. 누를 때만 켜지고, 낮/밤이
+// 바뀌어 화면이 다시 그려져도(onSnapshot) 꺼질 때까지 계속 가려진 상태를 유지한다.
+let playerInfoHidden = false;
 
 function startPlayerSession(code, playerId) {
   showScreen("screen-player");
+  playerInfoHidden = false;
   if (playerUnsubGame) playerUnsubGame();
   if (playerUnsubPlayers) playerUnsubPlayers();
   if (playerTickInterval) clearInterval(playerTickInterval);
@@ -1675,6 +1680,7 @@ function startPlayerSession(code, playerId) {
     }
     renderPlayer(code, playerId, latestGame, latestPlayers, me);
   };
+  playerRerenderFn = rerender;
 
   // 결과 발표(reveal) 화면의 카운트다운 숫자가 매초 줄어들도록 주기적으로 다시 그린다.
   playerTickInterval = setInterval(() => {
@@ -1729,6 +1735,16 @@ function renderPlayer(code, playerId, game, players, me) {
   document.body.classList.toggle("player-dead", !me.alive);
   const badge = $("playerModeBadge");
   if (badge) badge.textContent = `🙋 참가자모드[${me.name}]`;
+
+  const hideInfoBtn = $("btnHidePlayerInfo");
+  if (hideInfoBtn) {
+    hideInfoBtn.hidden = game.status !== "playing";
+    hideInfoBtn.textContent = playerInfoHidden ? "👁️ 내 정보 보이기" : "🙈 내 정보 가리기";
+    hideInfoBtn.onclick = () => {
+      playerInfoHidden = !playerInfoHidden;
+      if (playerRerenderFn) playerRerenderFn();
+    };
+  }
 
   if (game.status === "lobby") {
     el.innerHTML = `
@@ -1792,24 +1808,36 @@ function renderPlayer(code, playerId, game, players, me) {
   }
 
   // playing
-  const myRoleBox = `
-    <div class="role-box role-${me.role}">
-      <span class="icon">${roleEmoji(me.role)}</span>
-      <div class="role-box-text">
-        <span class="role-name">당신은 ${roleLabel(me.role)}입니다.</span>
-        <span class="role-desc">${roleDescription(me.role)}</span>
-      </div>
-    </div>
-  `;
-
-  let mafiaTeamBox = "";
-  if (me.role === "mafia") {
-    const teammates = players.filter((p) => p.role === "mafia" && p.id !== playerId);
-    mafiaTeamBox = `
-      <div class="mafia-team-box">
-        🔪 동료 마피아: ${teammates.length ? teammates.map((p) => escapeHtml(p.name)).join(", ") : "없음 (당신 혼자입니다)"}
+  // "내 정보 가리기"가 켜져 있으면, 역할을 알 수 있는 박스(역할 박스 + 동료
+  // 마피아 명단)를 통째로 중립적인 안내 박스 하나로 바꿔치기한다. 낮/밤이
+  // 바뀌어 다시 그려져도 playerInfoHidden 값이 꺼지기 전까지는 계속 가려진다.
+  let roleInfoArea;
+  if (playerInfoHidden) {
+    roleInfoArea = waitingBox(
+      "🙈",
+      `<p>내 정보가 가려져 있어요.</p><p class="sub-text">위쪽 "👁️ 내 정보 보이기" 버튼을 누르면 다시 볼 수 있어요.</p>`
+    );
+  } else {
+    const myRoleBox = `
+      <div class="role-box role-${me.role}">
+        <span class="icon">${roleEmoji(me.role)}</span>
+        <div class="role-box-text">
+          <span class="role-name">당신은 ${roleLabel(me.role)}입니다.</span>
+          <span class="role-desc">${roleDescription(me.role)}</span>
+        </div>
       </div>
     `;
+
+    let mafiaTeamBox = "";
+    if (me.role === "mafia") {
+      const teammates = players.filter((p) => p.role === "mafia" && p.id !== playerId);
+      mafiaTeamBox = `
+        <div class="mafia-team-box">
+          🔪 동료 마피아: ${teammates.length ? teammates.map((p) => escapeHtml(p.name)).join(", ") : "없음 (당신 혼자입니다)"}
+        </div>
+      `;
+    }
+    roleInfoArea = `${myRoleBox}${mafiaTeamBox}`;
   }
 
   const actionArea = renderPlayerAction(code, playerId, game, players, me);
@@ -1818,8 +1846,7 @@ function renderPlayer(code, playerId, game, players, me) {
     ${renderCodeChip(game.code)}
     ${renderPhaseBanner(game)}
     ${renderCountsRow(game, players)}
-    ${myRoleBox}
-    ${mafiaTeamBox}
+    ${roleInfoArea}
     ${actionArea}
   `;
 

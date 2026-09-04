@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>마피아 게임</title>
-<link rel="stylesheet" href="style.css?v=20260904-3" />
+<link rel="stylesheet" href="style.css?v=20260904-4" />
 </head>
 <body>
 <script>
@@ -73,6 +73,7 @@
         <li><span class="badge police">🔍 경찰</span> 밤마다 한 명을 조사해 마피아인지 아닌지 몰래 알아낼 수 있어요. 조사가 실패할 수도 있어요.(50%확률)</li>
       </ul>
       <p class="sub-text">참가 인원수에 따라 역할 수가 자동으로 정해져요. 3~6명은 마피아 1명으로 고정되고, 7명부터는 인원이 늘어날수록 마피아·의사·경찰 수도 함께 늘어나요.</p>
+      <p class="sub-text">🙈 화면 위쪽의 "내 정보 가리기" 버튼을 누르면 내 역할이 나온 박스가 통째로 가려져요. 옆에서 친구가 태블릿을 봐도 역할을 알 수 없고, 낮이든 밤이든 다시 "내 정보 보이기"를 누를 때까지 계속 가려져 있어요.</p>
     </div>
 
     <div class="card">
@@ -200,6 +201,7 @@
   <section id="screen-player" class="screen">
     <div class="admin-top-row">
       <div class="admin-mode-badge" id="playerModeBadge">🙋 참가자모드</div>
+      <button id="btnHidePlayerInfo" class="admin-mode-badge hide-screen-badge-btn" hidden>🙈 내 정보 가리기</button>
     </div>
     <div id="playerContent"></div>
   </section>
@@ -221,6 +223,6 @@
   onerror="showFatalError('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 학교/기관 네트워크의 차단 설정을 확인해주세요. (firebase-firestore-compat.js 로드 실패)')"
 ></script>
 <script src="firebase-config.js" onerror="showFatalError('firebase-config.js 파일을 불러오지 못했습니다.')"></script>
-<script src="app.js?v=20260904-3" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
+<script src="app.js?v=20260904-4" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
 </body>
 </html>
