@@ -734,7 +734,7 @@ function renderAdmin(code, game, players) {
   if (game.status === "playing" && adminScreenHidden) {
     el.innerHTML = `
       <div class="admin-blackout">
-        <button class="big-btn" id="btnRevealAdminScreen">▶️ 게임 진행 상황을 보려면 다음 버튼을 누르세요</button>
+        <button class="big-btn" id="btnRevealAdminScreen">▶️ 이 버튼을 누르면 게임 진행 상황이 다시 보여요</button>
       </div>
     `;
     $("btnRevealAdminScreen").addEventListener("click", () => {

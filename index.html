@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>마피아 게임</title>
-<link rel="stylesheet" href="style.css?v=20260903-10" />
+<link rel="stylesheet" href="style.css?v=20260904-1" />
 </head>
 <body>
 <script>
@@ -52,11 +52,13 @@
     <div class="card">
       <h3 style="margin-top:0;">1️⃣ 게임 만들기</h3>
       <p>선생님(관리자)이 "게임 만들기"를 눌러서 몇 명이 할지 정하면, 4자리 숫자 코드가 생겨요.</p>
+      <p class="sub-text">관리자 비밀번호(4자리)도 함께 정할 수 있어요. 비워두면 자동으로 0000이 돼요. 중간에 화면이 꺼지거나 새로고침해도 대부분 자동으로 원래 화면으로 돌아오지만, 만약 안 될 때는 "게임 만들기" 화면 아래 "코드로 관리자 재접속"에 코드와 이 비밀번호를 입력하면 다시 관리자로 들어올 수 있어요.</p>
     </div>
 
     <div class="card">
       <h3 style="margin-top:0;">2️⃣ 게임 참가하기</h3>
       <p>친구들은 각자 자기 태블릿이나 휴대폰에서 "게임 참가하기"를 누르고, 코드와 이름을 적으면 방에 들어갈 수 있어요.</p>
+      <p class="sub-text">코드 입력란 위에 현재 열려있는 방 목록(대기실뿐 아니라 진행 중이거나 방금 끝난 방도 포함)이 뜨는데, 누르면 코드가 자동으로 채워져요. 중간에 튕겼거나 게임이 끝난 뒤 결과를 다시 보고 싶으면, 같은 코드에 처음에 썼던 이름을 그대로 입력하면 원래 있던 자리로 다시 들어갈 수 있어요.</p>
     </div>
 
     <div class="card">
@@ -103,6 +105,22 @@
     <div class="card">
       <h3 style="margin-top:0;">💡 알아두면 좋아요</h3>
       <p>낮과 밤 모두, <strong>살아있는 모든 사람이 화면에서 한 명을 선택해야</strong> 관리자가 버튼을 안 눌러도 자동으로 다음으로 넘어가요. (밤에는 실제 역할이 아닌 친구들의 가짜 선택도 포함이에요!) 결과가 나온 뒤에는 몇 초 동안 카운트다운을 하고 자동으로 다음 단계로 넘어가니 화면을 잘 보고 있어야 해요!</p>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">🛠️ 관리자 화면에서만 보이는 기능</h3>
+      <p>게임을 진행하는 동안 화면 오른쪽 위에 항상 버튼이 떠 있어요.</p>
+      <ul class="howto-role-list">
+        <li>🙈 <strong>화면 가리기</strong>: 관리자 화면에는 누가 마피아인지, 경찰 조사 결과 등 다른 사람에게 보이면 안 되는 정보가 나와요. 이 버튼을 누르면 화면이 검게 가려지고, 그 자리에 새로 나타나는 "이 버튼을 누르면 게임 진행 상황이 다시 보여요" 버튼을 누르면 원래대로 보여요. 학생들이 지나가며 볼 수도 있는 상황에서 잠깐 화면을 가릴 때 써요.</li>
+        <li>🛑 <strong>게임 종료</strong>: 게임을 도중에 완전히 강제로 끝내요. 누르면 모든 참가자가 자동으로 처음 화면으로 돌아가요. 되돌릴 수 없으니 정말 끝낼 때만 사용하세요.</li>
+        <li>🚪 <strong>나가기</strong>: 관리자나 참가자가 게임 중간에 이 화면에서 잠깐 벗어나고 싶을 때 눌러요. 관리자가 나가면 자동 진행이 멈추지만, 코드+비밀번호로 다시 들어오면 이어서 진행할 수 있어요. 참가자는 같은 코드와 이름으로 다시 들어올 수 있어요.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">🏁 게임이 끝나면</h3>
+      <p>승패가 정해지면 결과 화면에 <strong>참가자 전원의 역할과 생존/탈락 여부</strong>가 한눈에 보여요.</p>
+      <p class="sub-text">관리자는 "🏠 홈으로" 또는 "🆕 새 게임 만들기", 참가자는 "🏠 홈으로" 또는 "🙋 새 게임 참여하기" 버튼이 보여요. <strong>관리자가 이 중 아무 버튼이나 누르면 그 게임방은 완전히 삭제돼요</strong>(되돌릴 수 없어요). 참가자가 누르는 버튼은 방을 지우지 않고 자기 화면만 옮겨가니, 아직 결과를 다 못 본 친구가 있다면 관리자는 그 친구가 다 보고 나올 때까지 기다렸다가 눌러주세요. 관리자가 삭제하기 전이라면, 참가자는 게임 참가하기 화면 목록에서 코드를 찾아 다시 들어와 결과를 볼 수도 있어요.</p>
     </div>
 
     <button class="big-btn ghost" id="btnBackHome3">← 뒤로가기</button>
@@ -198,6 +216,6 @@
   onerror="showFatalError('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 학교/기관 네트워크의 차단 설정을 확인해주세요. (firebase-firestore-compat.js 로드 실패)')"
 ></script>
 <script src="firebase-config.js" onerror="showFatalError('firebase-config.js 파일을 불러오지 못했습니다.')"></script>
-<script src="app.js?v=20260903-10" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
+<script src="app.js?v=20260904-1" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
 </body>
 </html>
