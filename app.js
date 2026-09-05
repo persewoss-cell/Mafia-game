@@ -351,18 +351,27 @@ $("btnLeaveTopRight").addEventListener("click", () => {
 
 /* ------------------------------------------------------------
    게임 강제 종료 (관리자 전용, 나가기 버튼 옆 고정 버튼)
+   누르면 이 게임방이 완전히 삭제되고, 모든 참가자는 onSnapshot이
+   "게임을 찾을 수 없음"을 감지해 자동으로 홈 화면으로 돌아간다.
    ------------------------------------------------------------ */
 $("btnEndGameTopRight").addEventListener("click", async () => {
   const session = loadSession();
   if (!session || session.role !== "admin") return;
-  if (!confirm("정말로 게임을 강제 종료하시겠습니까? 모든 참가자가 자동으로 나가게 됩니다.")) return;
+  if (!confirm("게임을 종료하면 이 게임방이 완전히 삭제되고, 모든 참가자가 자동으로 처음 화면으로 돌아갑니다. 계속하시겠습니까?")) return;
+
+  if (adminUnsubGame) adminUnsubGame();
+  if (adminUnsubPlayers) adminUnsubPlayers();
+  if (adminTickInterval) clearInterval(adminTickInterval);
 
   try {
-    await gameRef(session.code).update({ status: "terminated", revealDeadline: null });
+    await deleteGameCompletely(session.code);
   } catch (err) {
     console.error(err);
     alert("게임 종료 중 오류가 발생했습니다: " + err.message);
+    return;
   }
+  clearSession();
+  showScreen("screen-home");
 });
 
 /* ------------------------------------------------------------
