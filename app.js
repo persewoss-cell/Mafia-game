@@ -911,7 +911,7 @@ function randomDecoyPoliceResult() {
 // locked가 true면(의사/경찰 차례) 한 번 선택한 뒤에는 바꿀 수 없다는 안내를 보여준다.
 function renderDecoyVote(players, myId, candidates, promptText, selectedId, locked) {
   return `
-    <p class="center-text decoy-alert">🚨 <span class="decoy-tag">[가짜투표]</span> ${promptText}</p>
+    <p class="center-text night-alert">🚨 <span class="night-alert-tag">[가짜투표]</span> ${promptText}</p>
     <p class="center-text sub-text">${
       locked
         ? "(선택해도 게임 결과에는 전혀 반영되지 않아요. 한 번 선택하면 바꿀 수 없으니 신중하게 골라주세요!)"
@@ -954,8 +954,18 @@ function renderPhaseBanner(game) {
       police_vote: "경찰이 조사하는 중",
       reveal: "결과 발표",
     };
+    // 실제로 선택 중인 화면에서는 "눈을 감고 기다리세요"가 실상과 맞지 않으므로,
+    // 진짜 역할이 무엇을 하고 나머지는 가짜투표에 참여하면 되는지 안내한다.
+    const subLabels = {
+      mafia_vote: "진짜 마피아는 제거할 시민을 선택하고, 나머지는 가짜투표에 참여해주세요.",
+      mafia_revote: "진짜 마피아는 제거할 시민을 선택하고, 나머지는 가짜투표에 참여해주세요.",
+      mafia_done: "눈을 감고 조용히 기다려주세요",
+      doctor_vote: "진짜 의사는 살릴 사람을 선택하고, 나머지는 가짜투표에 참여해주세요.",
+      police_vote: "진짜 경찰은 조사할 사람을 선택하고, 나머지는 가짜투표에 참여해주세요.",
+      reveal: "눈을 감고 조용히 기다려주세요",
+    };
     return `<div class="phase-banner">🌙 밤 ${game.dayNumber}일차 - ${labels[game.nightSubphase] || ""}
-      <span class="day-num">눈을 감고 조용히 기다려주세요</span></div>`;
+      <span class="day-num">${subLabels[game.nightSubphase] || "눈을 감고 조용히 기다려주세요"}</span></div>`;
   }
   return "";
 }
@@ -1889,8 +1899,8 @@ function renderPlayerAction(code, playerId, game, players, me) {
       return `
         ${
           isTie
-            ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
-               <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명]</p>`
+            ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! 득표수가 같아 <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
+               <p class="center-text sub-text">[${tieCount}차 재투표 현황: ${votedCount} / ${eligibleCount}명]</p>`
             : `<div class="vote-status-row sub-text">
                 <span>마피아로 의심되는 사람이 있으면 투표해주세요. 모든 사람이 투표하면 결과가 나옵니다.</span>
                 <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명]</span>
@@ -1924,12 +1934,10 @@ function renderPlayerAction(code, playerId, game, players, me) {
         return `
           ${
             isTie
-              ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
+              ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! 득표수가 같아 <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
+                 <p class="center-text sub-text">[${tieCount}차 재투표 현황: ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
+              : `<p class="center-text night-alert">🔥 <span class="night-alert-tag">[진짜투표]</span> 제거할 시민을 선택하세요.</p>
                  <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
-              : `<div class="vote-status-row sub-text">
-                  <span>제거할 시민을 선택하세요.</span>
-                  <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명 (마피아)]</span>
-                </div>`
           }
           <hr class="thin-divider" />
           ${renderPlayerGrid(gridPlayers, {
@@ -1964,10 +1972,8 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const votedCount = Object.keys(game.doctorVotes || {}).length;
         const eligibleCount = aliveList(players).filter((p) => p.role === "doctor").length;
         return `
-          <div class="vote-status-row sub-text">
-            <span>누구를 살릴지 선택하세요.</span>
-            <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명 (의사)]</span>
-          </div>
+          <p class="center-text night-alert">🔥 <span class="night-alert-tag">[진짜투표]</span> 누구를 살릴지 선택하세요.</p>
+          <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명 (의사)]</p>
           <hr class="thin-divider" />
           ${renderPlayerGrid(players, {
             mode: "night-doctor-vote",
@@ -2012,10 +2018,8 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const votedCount = Object.keys(game.policeChecks || {}).length;
         const eligibleCount = aliveList(players).filter((p) => p.role === "police").length;
         return `
-          <div class="vote-status-row sub-text">
-            <span>조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</span>
-            <span class="vote-status-tag">[조사현황: ${votedCount} / ${eligibleCount}명 (경찰)]</span>
-          </div>
+          <p class="center-text night-alert">🔥 <span class="night-alert-tag">[진짜투표]</span> 조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</p>
+          <p class="center-text sub-text">[조사현황: ${votedCount} / ${eligibleCount}명 (경찰)]</p>
           <hr class="thin-divider" />
           ${renderPlayerGrid(players, {
             mode: "night-police-vote",

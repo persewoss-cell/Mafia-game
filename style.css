@@ -486,14 +486,16 @@ body.theme-night .edit-name-btn:active { background: rgba(255,255,255,0.18); }
 }
 body.theme-night .tie-banner { background: #4a3a1a; color: #ffd68a; }
 
-/* 가짜 투표 화면임을 아이들이 확실히 알아채도록 눈에 띄게 표시한다. */
-.decoy-alert {
+/* 가짜 투표(🚨)와 진짜 투표(🔥) 화면 둘 다 같은 모양(빨간 굵은 글씨 +
+   태그)으로 보이게 해서, 옆에서 화면을 봤을 때 무늬만 보고 진짜/가짜를
+   구분할 수 없게 한다. */
+.night-alert {
   font-weight: 800;
   font-size: 1.05rem;
   color: #c23b3b;
 }
-body.theme-night .decoy-alert { color: #ff9d9d; }
-.decoy-alert .decoy-tag {
+body.theme-night .night-alert { color: #ff9d9d; }
+.night-alert .night-alert-tag {
   display: inline-block;
   background: #c23b3b;
   color: #ffffff;
