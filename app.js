@@ -672,10 +672,6 @@ function startAdminSession(code) {
         if (aliveMafia.length > 0 && votedCount >= aliveMafia.length && decoyDone) {
           action = () => closeMafiaVote(code, game, players);
         }
-      } else if (game.nightSubphase === "mafia_done") {
-        if (game.revealDeadline && Date.now() >= game.revealDeadline) {
-          action = () => goToDoctorPhase(code, players);
-        }
       } else if (game.nightSubphase === "doctor_vote") {
         const votedCount = Object.keys(game.doctorVotes || {}).length;
         const aliveNonDoctors = alivePlayers.filter((p) => p.role !== "doctor");
@@ -975,7 +971,6 @@ function renderPhaseBanner(game) {
       // (재투표 여부는 관리자 화면의 "진행 조작" 패널에서만 별도로 표시된다.)
       mafia_vote: "마피아가 대상을 고르는 중",
       mafia_revote: "마피아가 대상을 고르는 중",
-      mafia_done: "의사에게 넘어가는 중",
       doctor_vote: "의사가 살릴 사람을 고르는 중",
       police_vote: "경찰이 조사하는 중",
       reveal: "결과 발표",
@@ -985,7 +980,6 @@ function renderPhaseBanner(game) {
     const subLabels = {
       mafia_vote: "진짜 마피아는 제거할 시민을 선택하고, 나머지는 가짜투표에 참여해주세요.",
       mafia_revote: "진짜 마피아는 제거할 시민을 선택하고, 나머지는 가짜투표에 참여해주세요.",
-      mafia_done: "눈을 감고 조용히 기다려주세요",
       doctor_vote: "진짜 의사는 살릴 사람을 선택하고, 나머지는 가짜투표에 참여해주세요.",
       police_vote: "진짜 경찰은 조사할 사람을 선택하고, 나머지는 가짜투표에 참여해주세요.",
       reveal: "눈을 감고 조용히 기다려주세요",
@@ -1272,7 +1266,7 @@ function currentVoteContext(game, players) {
       });
       return { voteMap: policeVoteMap, candidates: game.policeCandidates || alive.map((p) => p.id) };
     }
-    // mafia_vote/mafia_revote/mafia_done/reveal: 마피아 투표 결과를 계속 보여준다.
+    // mafia_vote/mafia_revote/reveal: 마피아 투표 결과를 계속 보여준다.
     return { voteMap: game.nightVotes, candidates: game.nightCandidates || alive.map((p) => p.id) };
   }
   return { voteMap: {}, candidates: alive.map((p) => p.id) };
@@ -1391,20 +1385,11 @@ function renderAdminControlPanel(code, game, players) {
   }
 
   if (game.phase === "night") {
-    const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
     const alivePolice = alivePlayers.filter((p) => p.role === "police");
 
     if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
       return `<div class="center-text admin-action-row">
         <button class="big-btn" id="btnCloseMafiaVote">✅ 지금 바로 마피아 투표 마감하고 결과 확인</button>
-      </div>`;
-    }
-    if (game.nightSubphase === "mafia_done") {
-      const nextIsDoctor = aliveDoctors.length > 0;
-      const nextLabel = nextIsDoctor ? "💉 의사에게 넘어갑니다" : "🔍 경찰에게 넘어갑니다";
-      return `<div class="admin-panel">
-        ${renderCountdownText(game.revealDeadline, nextLabel)}
-        <button class="big-btn" id="btnGoDoctor">${nextIsDoctor ? "💉" : "🔍"} 지금 바로 넘기기</button>
       </div>`;
     }
     if (game.nightSubphase === "doctor_vote") {
@@ -1445,11 +1430,6 @@ function wireAdminControlPanel(code, game, players) {
   const btnCloseMafiaVote = $("btnCloseMafiaVote");
   if (btnCloseMafiaVote) {
     btnCloseMafiaVote.addEventListener("click", () => runAdminAction(() => closeMafiaVote(code, game, players)));
-  }
-
-  const btnGoDoctor = $("btnGoDoctor");
-  if (btnGoDoctor) {
-    btnGoDoctor.addEventListener("click", () => runAdminAction(() => goToDoctorPhase(code, players)));
   }
 
   const btnCloseDoctorVote = $("btnCloseDoctorVote");
@@ -1606,12 +1586,9 @@ async function closeMafiaVote(code, game, players) {
   if (aliveDoctors.length === 0 && alivePolice.length === 0) {
     await resolveNight(code, { mafiaTargetId: targetId });
   } else {
-    // 의사(또는 경찰) 선택으로 넘어가기 전 잠깐 카운트다운을 보여준다.
-    await gameRef(code).update({
-      mafiaTargetId: targetId,
-      nightSubphase: "mafia_done",
-      revealDeadline: Date.now() + REVEAL_COUNTDOWN_MS,
-    });
+    // 대기 없이 곧바로 의사(또는 경찰) 선택으로 넘어간다.
+    await gameRef(code).update({ mafiaTargetId: targetId });
+    await goToDoctorPhase(code, players);
   }
 }
 
@@ -1930,7 +1907,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
         ${
           isTie
             ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! 득표수가 같아 <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
-               <p class="center-text sub-text">[${tieCount}차 재투표 현황: ${votedCount} / ${eligibleCount}명]</p>`
+               <p class="center-text sub-text">[투표현황(${tieCount}차 재투표): ${votedCount} / ${eligibleCount}명]</p>`
             : `<div class="vote-status-row sub-text">
                 <span>마피아로 의심되는 사람이 있으면 투표해주세요. 모든 사람이 투표하면 결과가 나옵니다.</span>
                 <span class="vote-status-tag">[투표현황: ${votedCount} / ${eligibleCount}명]</span>
@@ -1965,7 +1942,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
           ${
             isTie
               ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! 득표수가 같아 <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
-                 <p class="center-text sub-text">[${tieCount}차 재투표 현황: ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
+                 <p class="center-text sub-text">[투표현황(${tieCount}차 재투표): ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
               : `<p class="center-text night-alert">🚨 <span class="night-alert-tag">[진짜투표]</span> 당신은 마피아입니다. 제거할 시민을 선택하세요.</p>
                  <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
           }
@@ -1987,13 +1964,6 @@ function renderPlayerAction(code, playerId, game, players, me) {
         myMafiaDecoy ? myMafiaDecoy.targetId : null,
         false
       );
-    }
-    if (game.nightSubphase === "mafia_done") {
-      const nextIsDoctor = aliveList(players).some((p) => p.role === "doctor");
-      return `${waitingBox("🌙", `<p>모두 눈을 감고 조용히 기다려주세요...</p>`)}${renderCountdownText(
-        game.revealDeadline,
-        nextIsDoctor ? "💉 의사에게 넘어갑니다" : "🔍 경찰에게 넘어갑니다"
-      )}`;
     }
     if (game.nightSubphase === "doctor_vote") {
       if (me.role === "doctor") {
