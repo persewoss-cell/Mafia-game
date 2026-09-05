@@ -1219,14 +1219,18 @@ function renderAdminStatusBox(game, players) {
   const lines = [];
 
   if (game.phase === "day" && (game.daySubphase === "vote" || game.daySubphase === "revote")) {
-    lines.push(renderVoteStatusLine("투표 현황", alivePlayers, game.votes, "미투표자"));
+    const dayTieCount = (game.voteRound || 1) - 1;
+    const dayLabel = dayTieCount > 0 ? `투표 현황(${dayTieCount}차 재투표)` : "투표 현황";
+    lines.push(renderVoteStatusLine(dayLabel, alivePlayers, game.votes, "미투표자"));
   } else if (game.phase === "night") {
     const aliveMafia = alivePlayers.filter((p) => p.role === "mafia");
     const aliveDoctors = alivePlayers.filter((p) => p.role === "doctor");
     const alivePolice = alivePlayers.filter((p) => p.role === "police");
 
     if (game.nightSubphase === "mafia_vote" || game.nightSubphase === "mafia_revote") {
-      lines.push(renderVoteStatusLine("마피아 투표 현황", aliveMafia, game.nightVotes, "미투표자"));
+      const mafiaTieCount = (game.nightRound || 1) - 1;
+      const mafiaLabel = mafiaTieCount > 0 ? `마피아 투표 현황(${mafiaTieCount}차 재투표)` : "마피아 투표 현황";
+      lines.push(renderVoteStatusLine(mafiaLabel, aliveMafia, game.nightVotes, "미투표자"));
       lines.push(renderDecoyStatusLine(alivePlayers, "mafia", game.decoyVotes));
     } else if (game.nightSubphase === "doctor_vote") {
       lines.push(renderVoteStatusLine("의사 선택 현황", aliveDoctors, game.doctorVotes, "미선택자"));
