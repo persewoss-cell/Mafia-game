@@ -350,28 +350,54 @@ $("btnLeaveTopRight").addEventListener("click", () => {
 });
 
 /* ------------------------------------------------------------
+   화면 안에서 직접 그리는 확인창. 브라우저 기본 confirm()은 태블릿의
+   키오스크/가이드 모드 등 일부 환경에서 막히거나 무시될 수 있어서,
+   반드시 눌러야 하는 중요한 동작(게임 종료 등)은 이 방식을 쓴다.
+   ------------------------------------------------------------ */
+function showConfirmModal(message, onConfirm) {
+  const overlay = $("modalOverlay");
+  const box = $("modalBox");
+  box.innerHTML = `
+    <p style="font-weight:700; font-size:1.1rem; margin-bottom:20px;">${message}</p>
+    <button class="big-btn" id="modalConfirmYes">확인</button>
+    <button class="big-btn secondary" id="modalConfirmNo">취소</button>
+  `;
+  overlay.classList.add("active");
+  $("modalConfirmYes").addEventListener("click", () => {
+    overlay.classList.remove("active");
+    onConfirm();
+  });
+  $("modalConfirmNo").addEventListener("click", () => {
+    overlay.classList.remove("active");
+  });
+}
+
+/* ------------------------------------------------------------
    게임 강제 종료 (관리자 전용, 나가기 버튼 옆 고정 버튼)
    누르면 이 게임방이 완전히 삭제되고, 모든 참가자는 onSnapshot이
    "게임을 찾을 수 없음"을 감지해 자동으로 홈 화면으로 돌아간다.
    ------------------------------------------------------------ */
-$("btnEndGameTopRight").addEventListener("click", async () => {
+$("btnEndGameTopRight").addEventListener("click", () => {
   const session = loadSession();
   if (!session || session.role !== "admin") return;
-  if (!confirm("게임을 종료하면 이 게임방이 완전히 삭제되고, 모든 참가자가 자동으로 처음 화면으로 돌아갑니다. 계속하시겠습니까?")) return;
+  showConfirmModal(
+    "게임을 종료하면 이 게임방이 완전히 삭제되고, 모든 참가자가 자동으로 처음 화면으로 돌아갑니다. 계속하시겠습니까?",
+    async () => {
+      if (adminUnsubGame) adminUnsubGame();
+      if (adminUnsubPlayers) adminUnsubPlayers();
+      if (adminTickInterval) clearInterval(adminTickInterval);
 
-  if (adminUnsubGame) adminUnsubGame();
-  if (adminUnsubPlayers) adminUnsubPlayers();
-  if (adminTickInterval) clearInterval(adminTickInterval);
-
-  try {
-    await deleteGameCompletely(session.code);
-  } catch (err) {
-    console.error(err);
-    alert("게임 종료 중 오류가 발생했습니다: " + err.message);
-    return;
-  }
-  clearSession();
-  showScreen("screen-home");
+      try {
+        await deleteGameCompletely(session.code);
+      } catch (err) {
+        console.error(err);
+        alert("게임 종료 중 오류가 발생했습니다: " + err.message);
+        return;
+      }
+      clearSession();
+      showScreen("screen-home");
+    }
+  );
 });
 
 /* ------------------------------------------------------------
@@ -1936,7 +1962,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
             isTie
               ? `<div class="tie-banner">🤝 ${tieCount}차 동률 발생! 득표수가 같아 <strong>${escapeHtml(tieNames)}</strong> 중 한 명에게 다시 투표해주세요.</div>
                  <p class="center-text sub-text">[${tieCount}차 재투표 현황: ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
-              : `<p class="center-text night-alert">🔥 <span class="night-alert-tag">[진짜투표]</span> 제거할 시민을 선택하세요.</p>
+              : `<p class="center-text night-alert">🚨 <span class="night-alert-tag">[진짜투표]</span> 당신은 마피아입니다. 제거할 시민을 선택하세요.</p>
                  <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명 (마피아)]</p>`
           }
           <hr class="thin-divider" />
@@ -1972,7 +1998,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const votedCount = Object.keys(game.doctorVotes || {}).length;
         const eligibleCount = aliveList(players).filter((p) => p.role === "doctor").length;
         return `
-          <p class="center-text night-alert">🔥 <span class="night-alert-tag">[진짜투표]</span> 누구를 살릴지 선택하세요.</p>
+          <p class="center-text night-alert">🚨 <span class="night-alert-tag">[진짜투표]</span> 당신은 의사입니다. 누구를 살릴지 선택하세요.</p>
           <p class="center-text sub-text">[투표현황: ${votedCount} / ${eligibleCount}명 (의사)]</p>
           <hr class="thin-divider" />
           ${renderPlayerGrid(players, {
@@ -2018,7 +2044,7 @@ function renderPlayerAction(code, playerId, game, players, me) {
         const votedCount = Object.keys(game.policeChecks || {}).length;
         const eligibleCount = aliveList(players).filter((p) => p.role === "police").length;
         return `
-          <p class="center-text night-alert">🔥 <span class="night-alert-tag">[진짜투표]</span> 조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</p>
+          <p class="center-text night-alert">🚨 <span class="night-alert-tag">[진짜투표]</span> 당신은 경찰입니다. 조사할 사람을 선택하세요. 한 번 선택하면 바꿀 수 없어요.</p>
           <p class="center-text sub-text">[조사현황: ${votedCount} / ${eligibleCount}명 (경찰)]</p>
           <hr class="thin-divider" />
           ${renderPlayerGrid(players, {

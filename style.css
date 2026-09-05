@@ -486,8 +486,8 @@ body.theme-night .edit-name-btn:active { background: rgba(255,255,255,0.18); }
 }
 body.theme-night .tie-banner { background: #4a3a1a; color: #ffd68a; }
 
-/* 가짜 투표(🚨)와 진짜 투표(🔥) 화면 둘 다 같은 모양(빨간 굵은 글씨 +
-   태그)으로 보이게 해서, 옆에서 화면을 봤을 때 무늬만 보고 진짜/가짜를
+/* 가짜 투표와 진짜 투표 화면이 아이콘(🚨)까지 완전히 같은 모양(빨간 굵은
+   글씨 + 태그)으로 보이게 해서, 옆에서 화면을 봤을 때 무늬만 보고 진짜/가짜를
    구분할 수 없게 한다. */
 .night-alert {
   font-weight: 800;
