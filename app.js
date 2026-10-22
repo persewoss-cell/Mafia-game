@@ -785,7 +785,9 @@ function renderAdmin(code, game, players) {
     const list = $("lobbyPlayerList");
     list.innerHTML = renderLobbyListItems(
       players,
-      players.map((p) => p.id)
+      players.map((p) => p.id),
+      null,
+      true
     );
     wireLobbyEditButtons(list, code, players);
     $("btnStartGame").addEventListener("click", () => startGame(code, players));
@@ -1006,8 +1008,9 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// 대기실 명단을 렌더링한다. editableIds에 포함된 참가자 옆에는 이름 수정(✏️) 버튼을 붙인다.
-function renderLobbyListItems(players, editableIds, selfId) {
+// 대기실 명단을 렌더링한다. editableIds에 포함된 참가자 옆에는 이름 수정(✏️) 버튼을 붙이고,
+// canKick이 true면(관리자 대기실) 그 옆에 내보내기(🗑️) 버튼도 붙인다.
+function renderLobbyListItems(players, editableIds, selfId, canKick = false) {
   if (players.length === 0) {
     return `<li class="sub-text lobby-empty">아직 참가자가 없습니다...</li>`;
   }
@@ -1017,8 +1020,11 @@ function renderLobbyListItems(players, editableIds, selfId) {
       const editBtn = canEdit
         ? `<button type="button" class="edit-name-btn" data-player-id="${p.id}">✏️</button>`
         : "";
+      const kickBtn = canKick
+        ? `<button type="button" class="kick-player-btn" data-player-id="${p.id}" title="내보내기">🗑️</button>`
+        : "";
       const selfTag = p.id === selfId ? " (나)" : "";
-      return `<li>🙋 ${escapeHtml(p.name)}${selfTag}${editBtn}</li>`;
+      return `<li>🙋 ${escapeHtml(p.name)}${selfTag}${editBtn}${kickBtn}</li>`;
     })
     .join("");
 }
@@ -1031,6 +1037,24 @@ function wireLobbyEditButtons(container, code, players) {
       renamePlayer(code, player.id, player.name);
     });
   });
+  container.querySelectorAll(".kick-player-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const player = players.find((p) => p.id === btn.dataset.playerId);
+      if (!player) return;
+      showConfirmModal(`<strong>${escapeHtml(player.name)}</strong> 학생을 내보낼까요?`, () => kickPlayer(code, player.id));
+    });
+  });
+}
+
+// 대기실에서 참가자를 내보낸다. 참가자 문서가 지워지면 그 학생 화면은 이를 감지해
+// 자동으로 처음 화면으로 돌아간다.
+async function kickPlayer(code, playerId) {
+  try {
+    await gameRef(code).collection("players").doc(playerId).delete();
+  } catch (err) {
+    console.error(err);
+    alert("내보내기 중 오류가 발생했습니다: " + err.message);
+  }
 }
 
 async function renamePlayer(code, playerId, currentName) {
@@ -1715,13 +1739,26 @@ function startPlayerSession(code, playerId) {
 
   let latestGame = null;
   let latestPlayers = [];
+  // 참가자 명단을 한 번이라도 받아온 뒤에만 "내가 명단에 없음 = 내보내짐"으로 판단한다.
+  let playersLoaded = false;
+  let wasInPlayers = false;
 
   const rerender = () => {
     if (!latestGame) return;
     const me = latestPlayers.find((p) => p.id === playerId);
+    if (me) wasInPlayers = true;
+    if (!me && playersLoaded) {
+      // 관리자가 대기실에서 내보냈거나(접속 중이 아닐 때 내보내진 경우 포함) 내 정보가 없음
+      if (playerUnsubGame) playerUnsubGame();
+      if (playerUnsubPlayers) playerUnsubPlayers();
+      if (playerTickInterval) clearInterval(playerTickInterval);
+      clearSession();
+      showScreen("screen-home");
+      alert(wasInPlayers ? "관리자가 대기실에서 내보냈습니다. 처음 화면으로 돌아갑니다." : "게임 정보를 찾을 수 없습니다. 처음 화면으로 돌아갑니다.");
+      return;
+    }
     if (!me) {
-      // 강퇴/데이터 없음 등
-      renderPlayerWaiting("게임 정보를 찾을 수 없습니다.");
+      renderPlayerWaiting("게임 정보를 불러오는 중입니다...");
       return;
     }
     renderPlayer(code, playerId, latestGame, latestPlayers, me);
@@ -1768,6 +1805,7 @@ function startPlayerSession(code, playerId) {
     .orderBy("joinedAt", "asc")
     .onSnapshot((snap) => {
       latestPlayers = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      playersLoaded = true;
       rerender();
     });
 }

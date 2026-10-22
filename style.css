@@ -470,6 +470,19 @@ body.theme-night .lobby-list li { background: rgba(255,255,255,0.06); }
 .edit-name-btn:active { background: rgba(0,0,0,0.12); transform: scale(0.9); }
 body.theme-night .edit-name-btn:active { background: rgba(255,255,255,0.18); }
 
+/* 관리자 대기실: 이름 수정 버튼 옆의 내보내기 버튼 */
+.kick-player-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 3px 5px;
+  margin-left: 0;
+  border-radius: 8px;
+  vertical-align: middle;
+}
+.kick-player-btn:active { background: rgba(194,59,59,0.18); transform: scale(0.9); }
+
 @media (max-width: 520px) {
   .lobby-list { grid-template-columns: repeat(3, 1fr); }
 }
