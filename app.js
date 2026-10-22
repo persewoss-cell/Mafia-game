@@ -855,6 +855,7 @@ function renderAdmin(code, game, players) {
     ${renderPhaseBanner(game)}
     ${renderNightStatusPanel(game, players)}
     ${renderCountsRow(game, players)}
+    ${renderAdminTieBanner(game, players)}
     ${renderAdminStatusBox(game, players)}
     ${liveRevealBox}
     <hr class="thin-divider" />
@@ -1232,6 +1233,29 @@ function renderAdminStatusBox(game, players) {
   return `<div class="panel vote-status-box">${content}</div>`;
 }
 
+// 지금 동률 재투표 중이면 { candidates, tieCount, label }을, 아니면 null을 돌려준다.
+// 낮 투표와 밤 마피아 투표 모두 재투표 대상(동률 후보)만 candidates에 남는다.
+function currentRevoteInfo(game) {
+  if (game.phase === "day" && game.daySubphase === "revote" && (game.voteRound || 1) >= 2) {
+    return { candidates: game.voteCandidates || [], tieCount: (game.voteRound || 1) - 1, label: "" };
+  }
+  if (game.phase === "night" && game.nightSubphase === "mafia_revote" && (game.nightRound || 1) >= 2) {
+    return { candidates: game.nightCandidates || [], tieCount: (game.nightRound || 1) - 1, label: "마피아 " };
+  }
+  return null;
+}
+
+// 관리자 화면에도 참가자 화면과 같은 동률 안내 배너로 재투표 대상자를 알려준다.
+function renderAdminTieBanner(game, players) {
+  const info = currentRevoteInfo(game);
+  if (!info) return "";
+  const names = players
+    .filter((p) => info.candidates.includes(p.id))
+    .map((p) => escapeHtml(p.name))
+    .join(", ");
+  return `<div class="tie-banner">🤝 ${info.label}${info.tieCount}차 동률 발생! 재투표 대상: <strong>${names}</strong></div>`;
+}
+
 // 참가자 아이콘: 관리자 화면에서는 항상 역할을 알 수 있으므로, 역할별로 다르지만
 // 비슷한 느낌의 아이콘을 보여준다.
 function adminRoleIcon(role) {
@@ -1272,6 +1296,8 @@ function currentVoteContext(game, players) {
 function renderAdminLiveGrid(game, players) {
   const alive = aliveList(players);
   const { voteMap, candidates } = currentVoteContext(game, players);
+  const revoteInfo = currentRevoteInfo(game);
+  const revoteIds = new Set(revoteInfo ? revoteInfo.candidates : []);
 
   let redIds = new Set();
   let greenIds = new Set();
@@ -1298,7 +1324,7 @@ function renderAdminLiveGrid(game, players) {
         footer = "생존";
       } else {
         const n = Object.values(voteMap || {}).filter((t) => t === p.id).length;
-        footer = `${n}표`;
+        footer = revoteIds.has(p.id) ? `🤝 재투표 ${n}표` : `${n}표`;
       }
 
       let cardClass = "admin-vote-card";
@@ -1313,6 +1339,8 @@ function renderAdminLiveGrid(game, players) {
       } else if (yellowLightIds.has(p.id)) {
         cardClass += " vote-lead-yellow-light";
       }
+      // 재투표 대상(동률 후보)은 배경색과 별개로 노란 테두리로 항상 눈에 띄게 한다.
+      if (!isDead && revoteIds.has(p.id)) cardClass += " revote-target";
 
       const roleTagClass = `role-tag ${p.role}`;
       const icon = isDead ? "💀" : adminRoleIcon(p.role);

@@ -752,6 +752,15 @@ body.theme-night .admin-vote-card.vote-lead-green { background: #1e4a38; }
 body.theme-night .admin-vote-card.vote-lead-yellow-dark { background: #7a5c14; }
 body.theme-night .admin-vote-card.vote-lead-yellow-light { background: #4a3d1e; }
 
+/* 동률 재투표 대상 카드: 득표 배경색과 겹쳐도 보이도록 테두리 바깥에 노란 굵은 선을 두른다. */
+.admin-vote-card.revote-target {
+  outline: 3px solid #f0a500;
+  outline-offset: 0;
+}
+.admin-vote-card.revote-target .avc-footer { font-weight: 800; color: #8a5a10; background: #fff0d0; }
+body.theme-night .admin-vote-card.revote-target { outline-color: #ffc23a; }
+body.theme-night .admin-vote-card.revote-target .avc-footer { color: #ffd68a; background: #4a3a1a; }
+
 @media (max-width: 760px) {
   .admin-vote-card { flex-basis: calc((100% - 4 * 8px) / 5); max-width: calc((100% - 4 * 8px) / 5); }
 }
