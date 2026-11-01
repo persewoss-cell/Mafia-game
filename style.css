@@ -197,6 +197,20 @@ body.player-dead .code-chip { background: rgba(0,0,0,0.12); }
 
 .title-row p { color: var(--text-sub); font-size: 1.1rem; margin: 0; }
 
+/* 홈 화면 제목 왼쪽의 앱 아이콘: 글자 크기에 맞춰 함께 커지고 작아진다. */
+.title-row h1.home-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25em;
+}
+.home-title-icon {
+  width: 1.4em;
+  height: 1.4em;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .big-btn {
   display: block;
   width: 100%;

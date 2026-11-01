@@ -4,7 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>마피아 게임</title>
-<link rel="stylesheet" href="style.css?v=20260904-9" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="style.css?v=20261101-1" />
 </head>
 <body>
 <script>
@@ -34,7 +39,7 @@
   <!-- 홈 화면 -->
   <section id="screen-home" class="screen">
     <div class="title-row">
-      <h1>🕵️ 마피아 게임</h1>
+      <h1 class="home-title"><img class="home-title-icon" src="icons/app-icon.png" alt="" />마피아 게임</h1>
       <p>다같이 즐기는 추리 게임</p>
     </div>
     <button class="big-btn" id="btnGoCreate">🛠️ 게임 만들기 (관리자)</button>
@@ -223,6 +228,6 @@
   onerror="showFatalError('Firebase 라이브러리를 불러오지 못했습니다. 인터넷 연결 또는 학교/기관 네트워크의 차단 설정을 확인해주세요. (firebase-firestore-compat.js 로드 실패)')"
 ></script>
 <script src="firebase-config.js" onerror="showFatalError('firebase-config.js 파일을 불러오지 못했습니다.')"></script>
-<script src="app.js?v=20260904-9" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
+<script src="app.js?v=20261101-1" onerror="showFatalError('app.js 파일을 불러오지 못했습니다.')"></script>
 </body>
 </html>
